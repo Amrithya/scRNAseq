@@ -175,7 +175,3 @@ cython_debug/
 
 # Large files
 *.h5ad
-
-# results
-*.csv
-*.png
