@@ -94,7 +94,11 @@ if __name__ == "__main__":
         python gene_final.py --model lr --output results.csv
     """
 
-    adata = sc.read_h5ad('pbmc68k(2).h5ad')
+    adata = sc.read_h5ad('/data1/data/corpus/pbmc68k(2).h5ad')
+
+    #current_dir = os.path.dirname(os.path.abspath(__file__))
+    #file_path = os.path.join(current_dir, '..', 'data', 'pbmc68k(2).h5ad')
+    #adata = sc.read_h5ad(file_path)
 
     adata,y,le = preprocess_data(adata)
 
