@@ -196,6 +196,9 @@ def evaluate_model(clf, X, y, label_encoder=None, mode="",model="",down_samp="")
         'Model':[model],
         'Down sampling':[down_samp]
     }
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    results_dir = os.path.join(base_dir, 'results')
+    os.makedirs(results_dir, exist_ok=True)
     class_accuracies = {}
     for label in np.unique(y):
         label_indices = np.where(y == label)[0]
@@ -208,13 +211,14 @@ def evaluate_model(clf, X, y, label_encoder=None, mode="",model="",down_samp="")
     if mode == "test":
         val_macro_f1 = f1_score(y, y_pred, average="macro")
         results['Macro F1'] = [val_macro_f1]
-        plot_filename = f"confusion_matrix_{model}_{'down' if down_samp else 'full'}.png"
+        plot_filename = os.path.join(results_dir, f"confusion_matrix_{model}_{'down' if down_samp else 'full'}.png")
         plot_confusion_matrix(y,y_pred,label_encoder,plot_filename)
     df = pd.DataFrame(results)
-    results_file = f"results_file_{model}_{'down' if down_samp else 'full'}.csv"
+
+    results_file = os.path.join(results_dir, f"results_file_{model}_{'down' if down_samp else 'full'}.csv")
     if os.path.exists(results_file):
         os.remove(results_file)
-    df.to_csv(results_file, mode='a', header=not pd.io.common.file_exists(results_file), index=False)
+    df.to_csv(results_file, mode='a', header=not os.path.exists(results_file), index=False)
     print(f"Results saved to {results_file}")
 
 def plot_confusion_matrix(y_true, y_pred, label_encoder=None,save_path=None):
