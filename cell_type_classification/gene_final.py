@@ -6,8 +6,7 @@ import anndata as ad
 import argparse
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
-from helper import train_logistic_regression, evaluate_model,balance_dataset,preprocess_data,train_rf,train_sgd,train_xgboost
-
+import helper as h
 
 def run_model(model,down_samp,adata,y,le):
     """
@@ -46,7 +45,7 @@ def run_model(model,down_samp,adata,y,le):
             stratify=y
         )
     else:
-        X_balanced,y_balanced = balance_dataset(adata,X,y)
+        X_balanced,y_balanced = h.balance_dataset(adata,X,y)
         X_train, X_test, y_train, y_test = train_test_split(
             X_balanced,
             y_balanced,
@@ -56,21 +55,21 @@ def run_model(model,down_samp,adata,y,le):
         )
 
     if model == "lr":
-        lr = train_logistic_regression(X_train, y_train)
-        evaluate_model(lr, X_train, y_train, le,"train",model,down_samp)
-        evaluate_model(lr, X_test, y_test, le,"test",model,down_samp)
+        lr = h.train_logistic_regression(X_train, y_train)
+        h.evaluate_model(lr, X_train, y_train, le,"train",model,down_samp)
+        h.evaluate_model(lr, X_test, y_test, le,"test",model,down_samp)
     elif model == "rf":
-        rf = train_rf(X_train, y_train)
-        evaluate_model(rf, X_train, y_train, le,"train",model,down_samp)
-        evaluate_model(rf, X_test, y_test, le,"test",model,down_samp)
+        rf = h.train_rf(X_train, y_train)
+        h.evaluate_model(rf, X_train, y_train, le,"train",model,down_samp)
+        h.evaluate_model(rf, X_test, y_test, le,"test",model,down_samp)
     elif model == "sgd":
-        rf = train_sgd(X_train, y_train)
-        evaluate_model(rf, X_train, y_train, le,"train",model,down_samp)
-        evaluate_model(rf, X_test, y_test, le,"test",model,down_samp)
+        rf = h.train_sgd(X_train, y_train)
+        h.evaluate_model(rf, X_train, y_train, le,"train",model,down_samp)
+        h.evaluate_model(rf, X_test, y_test, le,"test",model,down_samp)
     elif model == "xg":
-        xg = train_xgboost(X_train, y_train)
-        evaluate_model(xg, X_train, y_train, le,"train",model,down_samp)
-        evaluate_model(xg, X_test, y_test, le,"test",model,down_samp)
+        xg = h.train_xgboost(X_train, y_train)
+        h.evaluate_model(xg, X_train, y_train, le,"train",model,down_samp)
+        h.evaluate_model(xg, X_test, y_test, le,"test",model,down_samp)
 
 
 if __name__ == "__main__":
@@ -90,17 +89,9 @@ if __name__ == "__main__":
     6. Saves the performance metrics and confusion matrix to disk.
 
     Example usage:
-        python gene_final.py -m rf -d -s results.csv
-        python gene_final.py --model lr --output results.csv
+        python gene_final.py -m rf -d -c  # if you run on cluster,include -c
+        python gene_final.py --model lr --down_samp
     """
-
-    adata = sc.read_h5ad('/data1/data/corpus/pbmc68k(2).h5ad')
-
-    #current_dir = os.path.dirname(os.path.abspath(__file__))
-    #file_path = os.path.join(current_dir, '..', 'data', 'pbmc68k(2).h5ad')
-    #adata = sc.read_h5ad(file_path)
-
-    adata,y,le = preprocess_data(adata)
 
     cmdline_parser = argparse.ArgumentParser('Training')
 
@@ -113,12 +104,25 @@ if __name__ == "__main__":
                                 action='store_true',
                                 help='enable down sampling')
     
+    cmdline_parser.add_argument('-c', '--cluster',
+                                action='store_true',
+                                help='dataset file location')
+    
     cmdline_parser.add_argument('-s', '--output',
                                 default="evaluation_results.csv",
                                 help='output_file',
                                 type=str)
     
     args, unknowns = cmdline_parser.parse_known_args()
+
+    if args.cluster:
+        adata = sc.read_h5ad('/data1/data/corpus/pbmc68k(2).h5ad')
+    else:
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        file_path = os.path.join(current_dir, '..', 'data', 'pbmc68k(2).h5ad')
+        adata = sc.read_h5ad(file_path)
+
+    adata,y,le = h.preprocess_data(adata)
     
     run_model(args.model, args.down_samp, adata, y,le)
     
