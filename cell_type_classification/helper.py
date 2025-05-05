@@ -115,7 +115,8 @@ def train_logistic_regression(X, y):
         Trained logistic regression model.
     """
 
-    model = LogisticRegression(penalty="l1", solver="liblinear")
+    model = LogisticRegression(penalty="l1", C=0.1,solver="liblinear")
+    print(model)
     model.fit(X, y)
     return model
 

@@ -5,7 +5,7 @@ import scanpy as sc
 import anndata as ad
 import argparse
 from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split,StratifiedShuffleSplit
 import helper as h
 
 def run_model(model,down_samp,adata,y,le):
@@ -37,22 +37,22 @@ def run_model(model,down_samp,adata,y,le):
     X = adata.X
     #print(model,down_samp,adata,y,le)
     if down_samp == False :
-        X_train, X_test, y_train, y_test = train_test_split(
-            X,
-            y,
-            test_size=0.2,
-            random_state=42,
-            stratify=y
-        )
+        SAMPLING_FRACS = [1.0]
+        for frac in SAMPLING_FRACS:
+            sss = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=2022) #update Aug 2023: hold train/val across all runs #same train/val set split for each frac in k
+            for index_train, index_val in sss.split(X, y):
+                index_train_small = np.random.choice(index_train, round(index_train.shape[0]*frac), replace=False)
+                X_train, y_train = X[index_train_small], y[index_train_small]
+                X_test, y_test = X[index_val], y[index_val]
     else:
         X_balanced,y_balanced = h.balance_dataset(adata,X,y)
-        X_train, X_test, y_train, y_test = train_test_split(
-            X_balanced,
-            y_balanced,
-            test_size=0.2,
-            random_state=42,
-            stratify=y_balanced
-        )
+        SAMPLING_FRACS = [1.0]
+        for frac in SAMPLING_FRACS:
+            sss = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=2022) #update Aug 2023: hold train/val across all runs #same train/val set split for each frac in k
+            for index_train, index_val in sss.split(X_balanced, y_balanced):
+                index_train_small = np.random.choice(index_train, round(index_train.shape[0]*frac), replace=False)
+                X_train, y_train = X_balanced[index_train_small], y_balanced[index_train_small]
+                X_test, y_test = X_balanced[index_val], y_balanced[index_val]
 
     if model == "lr":
         lr = h.train_logistic_regression(X_train, y_train)
