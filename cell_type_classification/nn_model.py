@@ -55,13 +55,13 @@ def train_nn(X, y, lr_rate):
 
     model = NNet(input_size, hidden_size, output_size)
     criterion = nn.CrossEntropyLoss(weight=weights)
-    optimizer = optim.Adam(model.parameters(), lr=lr_rate,weight_decay=0.01)
+    optimizer = optim.Adam(model.parameters(), lr=lr_rate)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device)
 
     print(f"\nTraining with learning rate: {lr_rate}")
-    
+    l1_lambda = 1e-5
     for epoch in range(num_epochs):
         model.train()
         running_loss = 0.0
@@ -73,6 +73,8 @@ def train_nn(X, y, lr_rate):
             optimizer.zero_grad()
             outputs = model(inputs)
             loss = criterion(outputs, labels)
+            l1_norm = sum(p.abs().sum() for p in model.parameters())
+            loss = loss + l1_lambda * l1_norm
             loss.backward()
             optimizer.step()
 
