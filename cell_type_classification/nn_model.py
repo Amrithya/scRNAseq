@@ -12,6 +12,8 @@ import os
 import helper as h
 
 def train_nn(X, y, lr_rate):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     X_tensor = torch.tensor(X.toarray(), dtype=torch.float32)
     le = LabelEncoder()
 
@@ -58,8 +60,6 @@ def train_nn(X, y, lr_rate):
     weights = weights.to(device)
     criterion = nn.CrossEntropyLoss(weight=weights)
     optimizer = optim.Adam(model.parameters(), lr=lr_rate)
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device)
 
     print(f"\nTraining with learning rate: {lr_rate}")
