@@ -11,12 +11,11 @@ import scanpy as sc
 import os
 import helper as h
 
-def train_nn(X, y, lr_rate):
+def train_nn(X, y, lr_rate, dropout_rate, hidden_size):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     X_tensor = torch.tensor(X.toarray(), dtype=torch.float32)
     le = LabelEncoder()
-
     y_tensor = torch.tensor(le.fit_transform(y), dtype=torch.long)
 
     X_train, X_test, y_train, y_test = train_test_split(X_tensor, y_tensor, test_size=0.2, random_state=42)
@@ -24,9 +23,9 @@ def train_nn(X, y, lr_rate):
     train_data = TensorDataset(X_train, y_train)
     test_data = TensorDataset(X_test, y_test)
 
-    y_train = np.array(y_train).flatten()
-    classes = np.unique(y_train)
-    weights = compute_class_weight(class_weight='balanced', classes=classes, y=y_train)
+    y_train_np = np.array(y_train).flatten()
+    classes = np.unique(y_train_np)
+    weights = compute_class_weight(class_weight='balanced', classes=classes, y=y_train_np)
     weights = torch.tensor(weights, dtype=torch.float)
 
     batch_size = 64
@@ -34,14 +33,14 @@ def train_nn(X, y, lr_rate):
     test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
 
     class NNet(nn.Module):
-        def __init__(self, input_size, hidden_size, output_size):
+        def __init__(self, input_size, hidden_size, output_size, dropout_rate):
             super(NNet, self).__init__()
             self.fc1 = nn.Linear(input_size, hidden_size)
             self.relu = nn.ReLU()
-            self.dropout1 = nn.Dropout(0.5)
-            self.fc2 = nn.Linear(hidden_size, hidden_size//2)
-            self.dropout2 = nn.Dropout(0.5)
-            self.fc3 = nn.Linear(hidden_size//2, output_size)
+            self.dropout1 = nn.Dropout(dropout_rate)
+            self.fc2 = nn.Linear(hidden_size, hidden_size // 2)
+            self.dropout2 = nn.Dropout(dropout_rate)
+            self.fc3 = nn.Linear(hidden_size // 2, output_size)
             self.softmax = nn.Softmax(dim=1)
         
         def forward(self, x):
@@ -56,17 +55,15 @@ def train_nn(X, y, lr_rate):
             return x
 
     input_size = X.shape[1]
-    hidden_size = 256
     output_size = len(le.classes_)
     num_epochs = 10
 
-    model = NNet(input_size, hidden_size, output_size)
+    model = NNet(input_size, hidden_size, output_size, dropout_rate).to(device)
     weights = weights.to(device)
     criterion = nn.CrossEntropyLoss(weight=weights)
     optimizer = optim.Adam(model.parameters(), lr=lr_rate)
-    model = model.to(device)
 
-    print(f"\nTraining with learning rate: {lr_rate}")
+    print(f"\nTraining with Hidden size: {hidden_size},learning rate: {lr_rate}, dropout rate: {dropout_rate}")
     l1_lambda = 1e-5
     for epoch in range(num_epochs):
         model.train()
@@ -106,19 +103,14 @@ def train_nn(X, y, lr_rate):
             total += labels.size(0)
 
     test_accuracy = correct / total * 100
-    print(f"Test Accuracy with learning rate {lr_rate}: {test_accuracy:.2f}%")
-    return test_accuracy
+    print(f"Hidden size {hidden_size}, learning rate {lr_rate}, dropout {dropout_rate}=> Train Accuracy:{epoch_accuracy:.2f} :: Test Accuracy: {test_accuracy:.2f}%")
+    return test_accuracy,epoch_accuracy
+
 
 if __name__ == "__main__":
-
     cmdline_parser = argparse.ArgumentParser('Training')
-    cmdline_parser.add_argument('-c', '--cluster',
-                                action='store_true',
-                                help='dataset file location')
-    
-    lr_rates = [0.001]
-
-    args, unknowns = cmdline_parser.parse_known_args()
+    cmdline_parser.add_argument('-c', '--cluster', action='store_true', help='Use cluster path')
+    args, _ = cmdline_parser.parse_known_args()
 
     if args.cluster:
         adata = sc.read_h5ad('/data1/data/corpus/pbmc68k(2).h5ad')
@@ -130,10 +122,17 @@ if __name__ == "__main__":
     X = adata.X
     adata, y, le = h.preprocess_data(adata)
 
-    accuracies = []
-    for lr in lr_rates:
-        accuracy = train_nn(X, y, lr)
-        accuracies.append((lr, accuracy))
+    hidden_sizes = [64, 128, 256, 512]
+    lr_rates = [0.001, 0.01, 0.1]
+    dropout_rates = [0.0, 0.3, 0.5]
+    results = []
 
-    for lr, accuracy in accuracies:
-        print(f"Learning Rate: {lr}, Test Accuracy: {accuracy:.2f}%")
+    for hidden_size in hidden_sizes:
+        for dropout in dropout_rates:
+            for lr in lr_rates:
+                test_accuracy,train_accuracy = train_nn(X, y, lr, dropout, hidden_size)
+                results.append((hidden_size,lr, dropout, train_accuracy,test_accuracy))
+
+    print("\nSummary of Results:")
+    for hidden_size, dropout, lr, train_acc, acc in results:
+        print(f"Hidden: {hidden_size}, Dropout: {dropout}, LR: {lr} => Train Accuracy: {train_acc:.2f}, Test Accuracy: {acc:.2f}%")
