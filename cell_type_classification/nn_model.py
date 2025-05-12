@@ -104,7 +104,7 @@ def train_nn(X, y, lr_rate, dropout_rate, hidden_size):
 
     test_accuracy = correct / total * 100
     print(f"Test Accuracy with Hidden size {hidden_size}, learning rate {lr_rate}, dropout {dropout_rate}: {test_accuracy:.2f}%")
-    return test_accuracy
+    return test_accuracy,epoch_accuracy
 
 
 if __name__ == "__main__":
@@ -130,9 +130,9 @@ if __name__ == "__main__":
     for hidden_size in hidden_sizes:
         for dropout in dropout_rates:
             for lr in lr_rates:
-                accuracy = train_nn(X, y, lr, dropout, hidden_size)
-                results.append((lr, dropout, accuracy))
+                test_accuracy,train_accuracy = train_nn(X, y, lr, dropout, hidden_size)
+                results.append((hidden_size,lr, dropout, train_accuracy,test_accuracy))
 
     print("\nSummary of Results:")
-    for hidden_size, dropout, lr, acc in results:
-        print(f"Hidden: {hidden_size}, Dropout: {dropout}, LR: {lr} => Accuracy: {acc:.2f}%")
+    for hidden_size, dropout, lr, train_acc, acc in results:
+        print(f"Hidden: {hidden_size}, Dropout: {dropout}, LR: {lr} => Train Accuracy: {train_acc:.2f}, Test Accuracy: {acc:.2f}%")
