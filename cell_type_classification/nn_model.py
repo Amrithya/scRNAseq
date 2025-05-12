@@ -11,7 +11,7 @@ from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, TensorDataset
 
 
-def train_nn(device, train_data, test_data, lr_rate, weights,input_size, output_size, dropout_rate, hidden_size):
+def train_nn(device, train_data, test_data, lr_rate, weights, input_size, output_size, dropout_rate, hidden_size):
     
     batch_size = 64
     train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
