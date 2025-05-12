@@ -1,33 +1,18 @@
+import os
 import torch
+import argparse
+import numpy as np
+import helper as h
+import scanpy as sc
 import torch.nn as nn
 import torch.optim as optim
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, TensorDataset
-import argparse
-from sklearn.utils.class_weight import compute_class_weight
-import numpy as np
-import scanpy as sc
-import os
-import helper as h
 
-def train_nn(X, y, lr_rate, dropout_rate, hidden_size):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    X_tensor = torch.tensor(X.toarray(), dtype=torch.float32)
-    le = LabelEncoder()
-    y_tensor = torch.tensor(le.fit_transform(y), dtype=torch.long)
-
-    X_train, X_test, y_train, y_test = train_test_split(X_tensor, y_tensor, test_size=0.2, random_state=42)
-
-    train_data = TensorDataset(X_train, y_train)
-    test_data = TensorDataset(X_test, y_test)
-
-    y_train_np = np.array(y_train).flatten()
-    classes = np.unique(y_train_np)
-    weights = compute_class_weight(class_weight='balanced', classes=classes, y=y_train_np)
-    weights = torch.tensor(weights, dtype=torch.float)
-
+def train_nn(device, train_data, test_data, lr_rate, weights,input_size, output_size, dropout_rate, hidden_size):
+    
     batch_size = 64
     train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
@@ -54,8 +39,6 @@ def train_nn(X, y, lr_rate, dropout_rate, hidden_size):
             x = self.softmax(x)
             return x
 
-    input_size = X.shape[1]
-    output_size = len(le.classes_)
     num_epochs = 10
 
     model = NNet(input_size, hidden_size, output_size, dropout_rate).to(device)
@@ -107,32 +90,6 @@ def train_nn(X, y, lr_rate, dropout_rate, hidden_size):
     return test_accuracy,epoch_accuracy
 
 
-if __name__ == "__main__":
-    cmdline_parser = argparse.ArgumentParser('Training')
-    cmdline_parser.add_argument('-c', '--cluster', action='store_true', help='Use cluster path')
-    args, _ = cmdline_parser.parse_known_args()
+    
 
-    if args.cluster:
-        adata = sc.read_h5ad('/data1/data/corpus/pbmc68k(2).h5ad')
-    else:
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        file_path = os.path.join(current_dir, '..', 'data', 'pbmc68k(2).h5ad')
-        adata = sc.read_h5ad(file_path)
-
-    X = adata.X
-    adata, y, le = h.preprocess_data(adata)
-
-    hidden_sizes = [64, 128, 256, 512]
-    lr_rates = [0.001, 0.01, 0.1]
-    dropout_rates = [0.0, 0.3, 0.5]
-    results = []
-
-    for hidden_size in hidden_sizes:
-        for dropout in dropout_rates:
-            for lr in lr_rates:
-                test_accuracy,train_accuracy = train_nn(X, y, lr, dropout, hidden_size)
-                results.append((hidden_size,lr, dropout, train_accuracy,test_accuracy))
-
-    print("\nSummary of Results:")
-    for hidden_size, dropout, lr, train_acc, acc in results:
-        print(f"Hidden: {hidden_size}, Dropout: {dropout}, LR: {lr} => Train Accuracy: {train_acc:.2f}, Test Accuracy: {acc:.2f}%")
+    

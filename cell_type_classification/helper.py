@@ -1,20 +1,34 @@
 import os
+import torch
 import numpy as np
 import pandas as pd
 import scanpy as sc
 import anndata as ad
 import seaborn as sns
 import xgboost as xgb
+import torch.nn as nn
 import matplotlib.pyplot as plt
 from xgboost import XGBClassifier
 from scipy.sparse import issparse
 from imblearn.over_sampling import SMOTE
 from sklearn.linear_model import SGDClassifier
 from sklearn.preprocessing import LabelEncoder
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from torch.utils.data import DataLoader, TensorDataset
 from sklearn.model_selection import StratifiedShuffleSplit
+from sklearn.utils.class_weight import compute_class_weight
 from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, classification_report
+
+
+def log_norm(adata):
+    sc.pp.normalize_total(adata, target_sum=1e4)
+    sc.pp.log1p(adata)
+    cell_type_series = adata.obs['cell_type']
+    le = LabelEncoder()
+    y = le.fit_transform(cell_type_series)
+    X = adata.X
+    return X, y, le
 
 def preprocess_data(adata, samp=False, cluster=False):
 
@@ -35,18 +49,35 @@ def preprocess_data(adata, samp=False, cluster=False):
         Encoded class labels.
     """
 
-    sc.pp.normalize_total(adata, target_sum=1e4)
-    sc.pp.log1p(adata)
-    cell_type_series = adata.obs['cell_type']
-    le = LabelEncoder()
-    y = le.fit_transform(cell_type_series)
-    X = adata.X
+    X, y,le = log_norm(adata)
     if samp == False :
         X_train, y_train, X_test, y_test = split_data(X,y)
     else:
         X_balanced, y_balanced = do_smote(X, y, cluster)
         X_train, y_train, X_test, y_test = split_data(X_balanced,y_balanced)
     return X_train, y_train, X_test, y_test, le
+
+def preprocess_data(device, adata, samp=False, cluster=False):
+    X, y,le = log_norm(adata)
+    input_size = X.shape[1]
+    output_size = len(le.classes_)
+    X_tensor = torch.tensor(X.toarray(), dtype=torch.float32)
+    y_tensor = torch.tensor(y.toarray(), dtype=torch.long)
+    if samp == False :
+        X_train, y_train, X_test, y_test = split_data(X_tensor,y_tensor)
+    else:
+        X_balanced, y_balanced = do_smote(X_tensor, y_tensor, cluster)
+        X_train, y_train, X_test, y_test = split_data(X_balanced,y_balanced) 
+    train_data = TensorDataset(X_train, y_train)
+    test_data = TensorDataset(X_test, y_test)
+
+    y_train_np = np.array(y_train).flatten()
+    classes = np.unique(y_train_np)
+    weights = compute_class_weight(class_weight='balanced', classes=classes, y=y_train_np)
+    weights = torch.tensor(weights, dtype=torch.float)
+
+    return train_data, test_data, weights, le, input_size, output_size
+
 
 def split_data(X,y):
     SAMPLING_FRACS = [1.0]

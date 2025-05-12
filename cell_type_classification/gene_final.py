@@ -1,11 +1,15 @@
 import os
-import numpy as np
-import pandas as pd
-import scanpy as sc
-import anndata as ad
+import torch
 import argparse
-from sklearn.preprocessing import LabelEncoder
+import numpy as np
 import helper as h
+import scanpy as sc
+import pandas as pd
+import anndata as ad
+import torch.nn as nn
+import nn_model as nnm 
+from sklearn.preprocessing import LabelEncoder
+
 
 def run_model(model,X_train, y_train, X_test, y_test, down_samp, le):
     """
@@ -51,6 +55,7 @@ def run_model(model,X_train, y_train, X_test, y_test, down_samp, le):
         h.evaluate_model(xg, X_train, y_train, le,"train",model,down_samp)
         h.evaluate_model(xg, X_test, y_test, le,"test",model,down_samp)
         #h.shap_explainer(lr, X_train, X_test)
+     
 
 
 if __name__ == "__main__":
@@ -73,6 +78,8 @@ if __name__ == "__main__":
         python gene_final.py -m rf -d -c  # if you run on cluster,include -c
         python gene_final.py --model lr --down_samp
     """
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     cmdline_parser = argparse.ArgumentParser('Training')
 
@@ -103,8 +110,23 @@ if __name__ == "__main__":
         file_path = os.path.join(current_dir, '..', 'data', 'pbmc68k(2).h5ad')
         adata = sc.read_h5ad(file_path)
 
-    X_train, y_train, X_test, y_test, le = h.preprocess_data(adata, args.down_samp, args.cluster)
-    
-    run_model(args.model, X_train, y_train, X_test, y_test, args.down_samp, le)
+    if args.model == "nn":
+        train_data, test_data, weights,le, input_size, output_size  = h.preprocess_data(device, adata, args.down_samp, args.cluster)
+        hidden_sizes = [64, 128, 256]
+        lr_rates = [0.001]
+        dropout_rates = [0.0, 0.3]
+        results = []
+        for hidden_size in hidden_sizes:
+            for dropout in dropout_rates:
+                for lr in lr_rates:
+                    test_accuracy,train_accuracy = nnm.train_nn(device, train_data, test_data, weights, lr, dropout, hidden_size)
+                    results.append((hidden_size,lr, dropout, train_accuracy,test_accuracy))
+        print("\nSummary of Results:")
+        for hidden_size, dropout, lr, train_acc, acc in results:
+            print(f"Hidden: {hidden_size}, LR: {lr}, Dropout: {dropout} => Train Accuracy: {train_acc:.2f}, Test Accuracy: {acc:.2f}%")
+
+    else:
+        X_train, y_train, X_test, y_test, le = h.preprocess_data(adata, args.down_samp, args.cluster)
+        run_model(args.model, X_train, y_train, X_test, y_test, args.down_samp, le)
     
 
