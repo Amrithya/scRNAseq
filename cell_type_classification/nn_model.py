@@ -11,7 +11,7 @@ import scanpy as sc
 import os
 import helper as h
 
-def train_nn(X, y, lr_rate, dropout_rate):
+def train_nn(X, y, lr_rate, dropout_rate, hidden_size):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     X_tensor = torch.tensor(X.toarray(), dtype=torch.float32)
@@ -55,7 +55,6 @@ def train_nn(X, y, lr_rate, dropout_rate):
             return x
 
     input_size = X.shape[1]
-    hidden_size = 256
     output_size = len(le.classes_)
     num_epochs = 10
 
@@ -123,15 +122,17 @@ if __name__ == "__main__":
     X = adata.X
     adata, y, le = h.preprocess_data(adata)
 
+    hidden_sizes = [128, 256, 512]
     lr_rates = [0.001, 0.01, 0.1]
     dropout_rates = [0.0, 0.3, 0.5]
     results = []
 
-    for dropout in dropout_rates:
-        for lr in lr_rates:
-            accuracy = train_nn(X, y, lr, dropout)
-            results.append((lr, dropout, accuracy))
+    for hidden_size in hidden_sizes:
+        for dropout in dropout_rates:
+            for lr in lr_rates:
+                accuracy = train_nn(X, y, lr, dropout, hidden_size)
+                results.append((lr, dropout, accuracy))
 
     print("\nSummary of Results:")
-    for lr, dropout, acc in results:
-        print(f"LR: {lr}, Dropout: {dropout}, Test Accuracy: {acc:.2f}%")
+    for hidden_size, dropout, lr, acc in results:
+        print(f"Hidden: {hidden_size}, Dropout: {dropout}, LR: {lr} => Accuracy: {acc:.2f}%")
