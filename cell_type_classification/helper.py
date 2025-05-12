@@ -62,7 +62,7 @@ def preprocess_data(device, adata, samp=False, cluster=False):
     input_size = X.shape[1]
     output_size = len(le.classes_)
     X_tensor = torch.tensor(X.toarray(), dtype=torch.float32)
-    y_tensor = torch.tensor(y.toarray(), dtype=torch.long)
+    y_tensor = torch.tensor(y, dtype=torch.long)
     if samp == False :
         X_train, y_train, X_test, y_test = split_data(X_tensor,y_tensor)
     else:
@@ -294,9 +294,9 @@ def do_smote(X, y, cluster=False):
     save_path = os.path.join(os.path.dirname(__file__), '..', 'data')
     os.makedirs(save_path, exist_ok=True)
     if cluster:
-        adata_file = sc.read_h5ad('/data1/data/corpus/pbmc68k_balanced_data.h5ad')
+        adata_file = sc.read_h5ad('/data1/data/corpus/pbmc68k_nn_balanced_data.h5ad')
     else:
-        adata_file = os.path.join(save_path, "pbmc68k_balanced_data.h5ad")
+        adata_file = os.path.join(save_path, "pbmc68k_nn_balanced_data.h5ad")
     if os.path.exists(adata_file):
             print("Balanced data exists..")
             adata = ad.read_h5ad(adata_file)

@@ -119,7 +119,7 @@ if __name__ == "__main__":
         for hidden_size in hidden_sizes:
             for dropout in dropout_rates:
                 for lr in lr_rates:
-                    test_accuracy,train_accuracy = nnm.train_nn(device, train_data, test_data, weights, lr, dropout, hidden_size)
+                    test_accuracy,train_accuracy = nnm.train_nn(device, train_data, test_data, lr, weights, input_size, output_size, dropout, hidden_size)
                     results.append((hidden_size,lr, dropout, train_accuracy,test_accuracy))
         print("\nSummary of Results:")
         for hidden_size, dropout, lr, train_acc, acc in results:
