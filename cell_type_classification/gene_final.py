@@ -5,10 +5,9 @@ import scanpy as sc
 import anndata as ad
 import argparse
 from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import train_test_split,StratifiedShuffleSplit
 import helper as h
 
-def run_model(model,down_samp,adata,y,le):
+def run_model(model,X_train, y_train, X_test, y_test, down_samp, le):
     """
     Trains and evaluates a classification model (Logistic Regression or Random Forest)
     on the given AnnData object. Optionally performs downsampling to balance class labels.
@@ -17,59 +16,41 @@ def run_model(model,down_samp,adata,y,le):
     -----------
     model : str
         The model to train, either "lr" for Logistic Regression or "rf" for Random Forest.
-    
-    down_samp : bool
-        Whether to perform downsampling to balance class distributions.
-        
-    adata : anndata.AnnData
-        The AnnData object containing gene expression data (adata.X) and metadata.
-    
-    y : np.ndarray
-        The encoded labels for classification.
-    
-    le : sklearn.preprocessing.LabelEncoder
-        LabelEncoder instance used to map original class names to integers.
+
+    X_train : np.ndarray
+        The training feature matrix.
+    y_train : np.ndarray
+        The training labels.
+    X_test : np.ndarray
+        The test feature matrix.
+    y_test : np.ndarray
+        The test labels.
 
     Returns:
     --------
     None
     """
-    X = adata.X
-    #print(model,down_samp,adata,y,le)
-    if down_samp == False :
-        SAMPLING_FRACS = [1.0]
-        for frac in SAMPLING_FRACS:
-            sss = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=2022) #update Aug 2023: hold train/val across all runs #same train/val set split for each frac in k
-            for index_train, index_val in sss.split(X, y):
-                index_train_small = np.random.choice(index_train, round(index_train.shape[0]*frac), replace=False)
-                X_train, y_train = X[index_train_small], y[index_train_small]
-                X_test, y_test = X[index_val], y[index_val]
-    else:
-        X_balanced,y_balanced = h.balance_dataset(adata,X,y)
-        SAMPLING_FRACS = [1.0]
-        for frac in SAMPLING_FRACS:
-            sss = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=2022) #update Aug 2023: hold train/val across all runs #same train/val set split for each frac in k
-            for index_train, index_val in sss.split(X_balanced, y_balanced):
-                index_train_small = np.random.choice(index_train, round(index_train.shape[0]*frac), replace=False)
-                X_train, y_train = X_balanced[index_train_small], y_balanced[index_train_small]
-                X_test, y_test = X_balanced[index_val], y_balanced[index_val]
-
     if model == "lr":
         lr = h.train_logistic_regression(X_train, y_train)
-        h.evaluate_model(lr, X_train, y_train, le,"train",model,down_samp)
-        h.evaluate_model(lr, X_test, y_test, le,"test",model,down_samp)
+        h.evaluate_model(lr, X_train, y_train,"train",model,down_samp)
+        h.evaluate_model(lr, X_test, y_test,"test",model,down_samp)
+        #h.shap_explainer(lr, X_train, X_test)
     elif model == "rf":
         rf = h.train_rf(X_train, y_train)
         h.evaluate_model(rf, X_train, y_train, le,"train",model,down_samp)
         h.evaluate_model(rf, X_test, y_test, le,"test",model,down_samp)
+        #h.shap_explainer(lr, X_train, X_test)
+
     elif model == "sgd":
         rf = h.train_sgd(X_train, y_train)
         h.evaluate_model(rf, X_train, y_train, le,"train",model,down_samp)
         h.evaluate_model(rf, X_test, y_test, le,"test",model,down_samp)
+        #h.shap_explainer(lr, X_train, X_test)
     elif model == "xg":
         xg = h.train_xgboost(X_train, y_train)
         h.evaluate_model(xg, X_train, y_train, le,"train",model,down_samp)
         h.evaluate_model(xg, X_test, y_test, le,"test",model,down_samp)
+        #h.shap_explainer(lr, X_train, X_test)
 
 
 if __name__ == "__main__":
@@ -122,8 +103,8 @@ if __name__ == "__main__":
         file_path = os.path.join(current_dir, '..', 'data', 'pbmc68k(2).h5ad')
         adata = sc.read_h5ad(file_path)
 
-    adata,y,le = h.preprocess_data(adata)
+    X_train, y_train, X_test, y_test, le = h.preprocess_data(adata, args.down_samp, args.cluster)
     
-    run_model(args.model, args.down_samp, adata, y,le)
+    run_model(args.model, X_train, y_train, X_test, y_test, args.down_samp, le)
     
 

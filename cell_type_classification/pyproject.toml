@@ -11,6 +11,7 @@ scanpy = "^1.11.1"
 numpy = "^2.2.5"
 xgboost = "^3.0.0"
 torch = ">=1.13.1"
+imbalanced-learn = "^0.13.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"

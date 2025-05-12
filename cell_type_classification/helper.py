@@ -1,18 +1,22 @@
+import os
 import numpy as np
 import pandas as pd
-from sklearn.linear_model import LogisticRegression
 import scanpy as sc
+import anndata as ad
+import seaborn as sns
+import xgboost as xgb
+import matplotlib.pyplot as plt
+from xgboost import XGBClassifier
+from scipy.sparse import issparse
+from imblearn.over_sampling import SMOTE
+from sklearn.linear_model import SGDClassifier
 from sklearn.preprocessing import LabelEncoder
 from sklearn.ensemble import RandomForestClassifier
-import xgboost as xgb
-from xgboost import XGBClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, classification_report
-from sklearn.linear_model import SGDClassifier
-import matplotlib.pyplot as plt
-import seaborn as sns
-import os
 
-def preprocess_data(adata):
+def preprocess_data(adata, samp=False, cluster=False):
 
     """
     Preprocess the input AnnData object by normalizing and log-transforming the data.
@@ -36,45 +40,24 @@ def preprocess_data(adata):
     cell_type_series = adata.obs['cell_type']
     le = LabelEncoder()
     y = le.fit_transform(cell_type_series)
-    return adata,y,le
+    X = adata.X
+    if samp == False :
+        X_train, y_train, X_test, y_test = split_data(X,y)
+    else:
+        X_balanced, y_balanced = do_smote(X, y, cluster)
+        X_train, y_train, X_test, y_test = split_data(X_balanced,y_balanced)
+    return X_train, y_train, X_test, y_test, le
 
-def balance_dataset(adata, X, y):
+def split_data(X,y):
+    SAMPLING_FRACS = [1.0]
+    for frac in SAMPLING_FRACS:
+        sss = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=2022) #update Aug 2023: hold train/val across all runs #same train/val set split for each frac in k
+        for index_train, index_val in sss.split(X, y):
+            index_train_small = np.random.choice(index_train, round(index_train.shape[0]*frac), replace=False)
+            X_train, y_train = X[index_train_small], y[index_train_small]
+            X_test, y_test = X[index_val], y[index_val]
+    return X_train, y_train, X_test, y_test
 
-    """
-    Downsamples each class in the dataset to the size of the smallest class for balancing.
-
-    Parameters:
-    -----------
-    adata : AnnData
-        AnnData object (used for updating obs with new labels).
-    X : array-like
-        Feature matrix (cells x genes).
-    y : array-like
-        Class labels.
-
-    Returns:
-    --------
-    X_balanced : np.ndarray
-        Downsampled feature matrix.
-    y_balanced : np.ndarray
-        Downsampled label array.
-    """
-
-    assert len(y) == X.shape[0], f"Mismatch: len(y)={len(y)}, X.shape[0]={X.shape[0]}"
-
-    adata.obs['label'] = y
-    min_size = pd.Series(y).value_counts().min()
-
-    balanced_indices = []
-    for label in np.unique(y):
-        label_indices = np.where(y == label)[0]
-        selected = np.random.choice(label_indices, min_size, replace=False)
-        balanced_indices.extend(selected)
-
-    X_balanced = X[balanced_indices]
-    y_balanced = y[balanced_indices]
-
-    return X_balanced, y_balanced
 
 def train_rf(X,y):
 
@@ -258,3 +241,64 @@ def plot_confusion_matrix(y_true, y_pred, label_encoder=None,save_path=None):
         plt.close()
     else:
         plt.show()
+
+def do_smote(X, y, cluster=False):
+    """
+    Apply SMOTE to balance the dataset and train a model.
+
+    Parameters:
+    -----------
+    X : array-like
+        Feature matrix.
+    y : array-like
+        Class labels.
+    Returns:
+    --------
+    X_balanced, y_balanced
+    """
+
+    print("Before SMOTE:")
+    print(f"X shape: {X.shape}")
+    print(f"y shape: {y.shape}")
+    save_path = os.path.join(os.path.dirname(__file__), '..', 'data')
+    os.makedirs(save_path, exist_ok=True)
+    if cluster:
+        adata_file = sc.read_h5ad('/data1/data/corpus/pbmc68k_balanced_data.h5ad')
+    else:
+        adata_file = os.path.join(save_path, "pbmc68k_balanced_data.h5ad")
+    if os.path.exists(adata_file):
+            print("Balanced data exists..")
+            adata = ad.read_h5ad(adata_file)
+            X_balanced = adata.X
+            y_balanced = adata.obs['label'].values
+    else:
+            smote = SMOTE(random_state=2022)
+            X_balanced, y_balanced = smote.fit_resample(X, y)
+            adata = ad.AnnData(X_balanced)
+            adata.obs['label'] = pd.Categorical(y_balanced)
+            adata.write(adata_file)
+    print("After SMOTE:")
+    print(f"X shape: {X_balanced.shape}")
+    print(f"y shape: {y_balanced.shape}")
+    print("Class distribution after SMOTE:")
+    print(pd.Series(y_balanced).value_counts())
+    return X_balanced, y_balanced
+        
+
+def shap_explain(clf,X_train, X_test):
+    """
+    Function to train a Logistic Regression model and explain it using SHAP.
+    
+    Returns:
+    - shap_values: SHAP values for the test data
+    - model: Trained logistic regression model
+    - explainer: SHAP explainer object
+    """
+
+    explainer = shap.Explainer(clf, X_train)
+    shap_values = explainer(X_test)
+    shap.summary_plot(shap_values, X_test)
+    shap.force_plot(shap_values[0])
+    shap.dependence_plot("mean radius", shap_values, X_test)
+
+
