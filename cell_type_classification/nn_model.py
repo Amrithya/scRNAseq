@@ -55,6 +55,7 @@ def train_nn(X, y, lr_rate):
     num_epochs = 10
 
     model = NNet(input_size, hidden_size, output_size)
+    weights = weights.to(device)
     criterion = nn.CrossEntropyLoss(weight=weights)
     optimizer = optim.Adam(model.parameters(), lr=lr_rate)
 
