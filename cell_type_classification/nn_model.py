@@ -103,7 +103,7 @@ def train_nn(X, y, lr_rate, dropout_rate, hidden_size):
             total += labels.size(0)
 
     test_accuracy = correct / total * 100
-    print(f"Test Accuracy with learning rate {lr_rate}, dropout {dropout_rate}: {test_accuracy:.2f}%")
+    print(f"Test Accuracy with Hidden size {hidden_size}, learning rate {lr_rate}, dropout {dropout_rate}: {test_accuracy:.2f}%")
     return test_accuracy
 
 
