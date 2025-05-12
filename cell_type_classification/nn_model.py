@@ -63,7 +63,7 @@ def train_nn(X, y, lr_rate, dropout_rate, hidden_size):
     criterion = nn.CrossEntropyLoss(weight=weights)
     optimizer = optim.Adam(model.parameters(), lr=lr_rate)
 
-    print(f"\nTraining with learning rate: {lr_rate}, dropout rate: {dropout_rate}")
+    print(f"\nTraining with Hidden size: {hidden_size},learning rate: {lr_rate}, dropout rate: {dropout_rate}")
     l1_lambda = 1e-5
     for epoch in range(num_epochs):
         model.train()
