@@ -4,6 +4,7 @@ import torch.optim as optim
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, TensorDataset
+import argparse
 from sklearn.utils.class_weight import compute_class_weight
 import numpy as np
 import scanpy as sc
@@ -103,18 +104,31 @@ def train_nn(X, y, lr_rate):
     print(f"Test Accuracy with learning rate {lr_rate}: {test_accuracy:.2f}%")
     return test_accuracy
 
-lr_rates = [0.001]
+if __name__ == "__main__":
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-file_path = os.path.join(current_dir, '..', 'data', 'pbmc68k(2).h5ad')
-adata = sc.read_h5ad(file_path)
-X = adata.X
-adata, y, le = h.preprocess_data(adata)
+    cmdline_parser = argparse.ArgumentParser('Training')
+    cmdline_parser.add_argument('-c', '--cluster',
+                                action='store_true',
+                                help='dataset file location')
+    
+    lr_rates = [0.001]
 
-accuracies = []
-for lr in lr_rates:
-    accuracy = train_nn(X, y, lr)
-    accuracies.append((lr, accuracy))
+    args, unknowns = cmdline_parser.parse_known_args()
 
-for lr, accuracy in accuracies:
-    print(f"Learning Rate: {lr}, Test Accuracy: {accuracy:.2f}%")
+    if args.cluster:
+        adata = sc.read_h5ad('/data1/data/corpus/pbmc68k(2).h5ad')
+    else:
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        file_path = os.path.join(current_dir, '..', 'data', 'pbmc68k(2).h5ad')
+        adata = sc.read_h5ad(file_path)
+
+    X = adata.X
+    adata, y, le = h.preprocess_data(adata)
+
+    accuracies = []
+    for lr in lr_rates:
+        accuracy = train_nn(X, y, lr)
+        accuracies.append((lr, accuracy))
+
+    for lr, accuracy in accuracies:
+        print(f"Learning Rate: {lr}, Test Accuracy: {accuracy:.2f}%")
