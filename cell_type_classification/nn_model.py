@@ -122,7 +122,7 @@ if __name__ == "__main__":
     X = adata.X
     adata, y, le = h.preprocess_data(adata)
 
-    hidden_sizes = [128, 256, 512]
+    hidden_sizes = [64, 128, 256, 512]
     lr_rates = [0.001, 0.01, 0.1]
     dropout_rates = [0.0, 0.3, 0.5]
     results = []
