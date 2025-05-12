@@ -56,7 +56,7 @@ def train_nn(X, y, lr_rate):
             return x
 
     input_size = X.shape[1]
-    hidden_size = 128
+    hidden_size = 256
     output_size = len(le.classes_)
     num_epochs = 10
 
