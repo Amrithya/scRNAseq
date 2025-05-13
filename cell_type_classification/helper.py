@@ -112,7 +112,7 @@ def preprocess_data_nn(device, X_train, y_train, X_test, y_test, le):
     train_data = TensorDataset(X_train, y_train)
     test_data = TensorDataset(X_test, y_test)
 
-    y_train_np = np.array(y_train).flatten()
+    y_train_np = y_train.cpu().numpy().flatten()
     classes = np.unique(y_train_np)
     weights = compute_class_weight(class_weight='balanced', classes=classes, y=y_train_np)
     weights = torch.tensor(weights, dtype=torch.float)
