@@ -24,8 +24,8 @@ from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, classifi
 def load_data(samp,cluster):
     if cluster:
         if samp:
-            if os.path.exists('/data1/data/corpus/pbmc68k_balanced_data.h5ad'):
-                file_path = '/data1/data/corpus/pbmc68k_balanced_data.h5ad'
+            if os.path.exists('/data1/data/corpus/pbmc68k_balanced_data2.h5ad'):
+                file_path = '/data1/data/corpus/pbmc68k_balanced_data2.h5ad'
                 print("Loading balanced and preprocessed data on cluster")
                 adata = sc.read_h5ad(file_path)
                 X = adata.X
