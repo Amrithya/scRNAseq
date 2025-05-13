@@ -24,8 +24,8 @@ from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, classifi
 def load_data(samp,cluster):
     if cluster:
         if samp:
-            file_path = '/data1/data/corpus/pbmc68k_nn_balanced_data.h5ad'
-            if os.path.exists(file_path):
+            if os.path.exists('/data1/data/corpus/pbmc68k_nn_balanced_data.h5ad'):
+                file_path = '/data1/data/corpus/pbmc68k_nn_balanced_data.h5ad'
                 print("Loading balanced and preprocessed data on cluster")
                 adata = sc.read_h5ad(file_path)
                 X = adata.X
@@ -34,7 +34,7 @@ def load_data(samp,cluster):
                 y = le.fit_transform(cell_type_series)
                 X_train, y_train, X_test, y_test = split_data(X,y)
             else:
-                print("Preprocessing with SMOTE")
+                print("Preprocessing raw data with SMOTE on cluster")
                 adata = sc.read_h5ad('/data1/data/corpus/pbmc68k(2).h5ad')
                 X_train, y_train, X_test, y_test, le = preprocess_data(adata, samp, cluster)
         else:
@@ -55,11 +55,11 @@ def load_data(samp,cluster):
                 y = le.fit_transform(cell_type_series)
                 X_train, y_train, X_test, y_test = split_data(X,y)
             else:
-                print("Preprocessing raw data with SMOTE")
+                print("Preprocessing raw data with SMOTE on local")
                 adata = sc.read_h5ad(os.path.join(current_dir, '..', 'data', 'pbmc68k(2).h5ad'))
                 X_train, y_train, X_test, y_test, le = preprocess_data(adata, samp, cluster)
         else:
-            print("Preprocessing raw data without SMOTE")
+            print("Preprocessing raw data without SMOTE on local")
             adata = sc.read_h5ad(os.path.join(current_dir, '..', 'data', 'pbmc68k(2).h5ad'))
             X_train, y_train, X_test, y_test, le = preprocess_data(adata, samp, cluster)
         
