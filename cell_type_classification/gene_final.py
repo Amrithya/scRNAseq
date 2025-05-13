@@ -104,6 +104,7 @@ if __name__ == "__main__":
     args, unknowns = cmdline_parser.parse_known_args()
 
     X_train, y_train, X_test, y_test, le = h.load_data(args.samp, args.cluster)
+    print("Data loaded successfully.")
 
     if args.model == "nn":
         train_data, test_data, weights,le, input_size, output_size  = h.preprocess_data_nn(device, X_train, y_train, X_test, y_test,le)
