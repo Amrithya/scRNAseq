@@ -105,14 +105,14 @@ def preprocess_data_nn(device, X_train, y_train, X_test, y_test, le):
     print("Preprocessing data for neural network")
     input_size = X_train.shape[1]
     output_size = len(le.classes_)
-    X_train = torch.tensor(X_train.toarray(), dtype=torch.float32).to(device)
-    y_train = torch.tensor(y_train, dtype=torch.long).to(device)
-    X_test = torch.tensor(X_test.toarray(), dtype=torch.float32).to(device)
-    y_test = torch.tensor(y_test, dtype=torch.long).to(device)
+    X_train = torch.tensor(X_train.toarray(), dtype=torch.float32)
+    y_train = torch.tensor(y_train, dtype=torch.long)
+    X_test = torch.tensor(X_test.toarray(), dtype=torch.float32)
+    y_test = torch.tensor(y_test, dtype=torch.long)
     train_data = TensorDataset(X_train, y_train)
     test_data = TensorDataset(X_test, y_test)
 
-    y_train_np = y_train.cpu().numpy().flatten()
+    y_train_np = y_train.numpy().flatten()
     classes = np.unique(y_train_np)
     weights = compute_class_weight(class_weight='balanced', classes=classes, y=y_train_np)
     weights = torch.tensor(weights, dtype=torch.float)
@@ -341,6 +341,7 @@ def do_smote(X, y):
     print(f"y shape: {y_balanced.shape}")
     print("Class distribution after SMOTE:")
     print(pd.Series(y_balanced).value_counts())
+    adata.write('/data1/data/corpus/pbmc68k_balanced_data2.h5ad')
     return X_balanced, y_balanced
         
 
