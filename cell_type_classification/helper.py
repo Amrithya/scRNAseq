@@ -97,7 +97,7 @@ def preprocess_data(adata, samp, cluster):
     if samp == False :
         X_train, y_train, X_test, y_test = split_data(X,y)
     else:
-        X_balanced, y_balanced = do_smote(X, y, cluster)
+        X_balanced, y_balanced = do_smote(X, y)
         X_train, y_train, X_test, y_test = split_data(X_balanced,y_balanced)
     return X_train, y_train, X_test, y_test, le
 
@@ -314,7 +314,7 @@ def plot_confusion_matrix(y_true, y_pred, label_encoder=None,save_path=None):
     else:
         plt.show()
 
-def do_smote(X, y, cluster=False):
+def do_smote(X, y):
     """
     Apply SMOTE to balance the dataset and train a model.
 
@@ -332,23 +332,10 @@ def do_smote(X, y, cluster=False):
     print("Before SMOTE:")
     print(f"X shape: {X.shape}")
     print(f"y shape: {y.shape}")
-    save_path = os.path.join(os.path.dirname(__file__), '..', 'data')
-    os.makedirs(save_path, exist_ok=True)
-    if cluster:
-        adata_file = sc.read_h5ad('/data1/data/corpus/pbmc68k_nn_balanced_data.h5ad')
-    else:
-        adata_file = os.path.join(save_path, "pbmc68k_nn_balanced_data.h5ad")
-    if os.path.exists(adata_file):
-            print("Balanced data exists..")
-            adata = ad.read_h5ad(adata_file)
-            X_balanced = adata.X
-            y_balanced = adata.obs['label'].values
-    else:
-            smote = SMOTE(random_state=2022)
-            X_balanced, y_balanced = smote.fit_resample(X, y)
-            adata = ad.AnnData(X_balanced)
-            adata.obs['label'] = pd.Categorical(y_balanced)
-            adata.write(adata_file)
+    smote = SMOTE(random_state=2022)
+    X_balanced, y_balanced = smote.fit_resample(X, y)
+    adata = ad.AnnData(X_balanced)
+    adata.obs['label'] = pd.Categorical(y_balanced)
     print("After SMOTE:")
     print(f"X shape: {X_balanced.shape}")
     print(f"y shape: {y_balanced.shape}")
