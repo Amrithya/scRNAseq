@@ -21,6 +21,50 @@ from sklearn.utils.class_weight import compute_class_weight
 from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, classification_report
 
 
+def load_data(samp,cluster):
+    if cluster:
+        if samp:
+            file_path = '/data1/data/corpus/pbmc68k_nn_balanced_data.h5ad'
+            if os.path.exists(file_path):
+                print("Loading balanced and preprocessed data on cluster")
+                adata = sc.read_h5ad(file_path)
+                X = adata.X
+                cell_type_series = adata.obs['label']
+                le = LabelEncoder()
+                y = le.fit_transform(cell_type_series)
+                X_train, y_train, X_test, y_test = split_data(X,y)
+            else:
+                print("Preprocessing with SMOTE")
+                adata = sc.read_h5ad('/data1/data/corpus/pbmc68k(2).h5ad')
+                X_train, y_train, X_test, y_test, le = preprocess_data(adata, samp, cluster)
+        else:
+            print("Preprocessing raw data on cluster")
+            adata = sc.read_h5ad('/data1/data/corpus/pbmc68k(2).h5ad')
+            X_train, y_train, X_test, y_test, le = preprocess_data(adata, samp, cluster)
+
+    else:
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        if samp:
+            file_path = os.path.join(current_dir, '..', 'data', 'pbmc68k_balanced_data.h5ad')
+            if os.path.exists(file_path):
+                print("Loading balanced and preprocessed data on local")
+                adata = sc.read_h5ad(file_path)
+                X = adata.X
+                cell_type_series = adata.obs['label']
+                le = LabelEncoder()
+                y = le.fit_transform(cell_type_series)
+                X_train, y_train, X_test, y_test = split_data(X,y)
+            else:
+                print("Preprocessing raw data with SMOTE")
+                adata = sc.read_h5ad(os.path.join(current_dir, '..', 'data', 'pbmc68k(2).h5ad'))
+                X_train, y_train, X_test, y_test, le = preprocess_data(adata, samp, cluster)
+        else:
+            print("Preprocessing raw data without SMOTE")
+            adata = sc.read_h5ad(os.path.join(current_dir, '..', 'data', 'pbmc68k(2).h5ad'))
+            X_train, y_train, X_test, y_test, le = preprocess_data(adata, samp, cluster)
+        
+    return X_train, y_train, X_test, y_test, le
+
 def log_norm(adata):
     sc.pp.normalize_total(adata, target_sum=1e4)
     sc.pp.log1p(adata)
@@ -30,7 +74,7 @@ def log_norm(adata):
     X = adata.X
     return X, y, le
 
-def preprocess_data(adata, samp=False, cluster=False):
+def preprocess_data(adata, samp, cluster):
 
     """
     Preprocess the input AnnData object by normalizing and log-transforming the data.
@@ -57,17 +101,14 @@ def preprocess_data(adata, samp=False, cluster=False):
         X_train, y_train, X_test, y_test = split_data(X_balanced,y_balanced)
     return X_train, y_train, X_test, y_test, le
 
-def preprocess_data(device, adata, samp=False, cluster=False):
-    X, y,le = log_norm(adata)
-    input_size = X.shape[1]
+def preprocess_data_nn(device, X_train, y_train, X_test, y_test, le):
+    print("Preprocessing data for neural network")
+    input_size = X_train.shape[1]
     output_size = len(le.classes_)
-    X_tensor = torch.tensor(X.toarray(), dtype=torch.float32)
-    y_tensor = torch.tensor(y, dtype=torch.long)
-    if samp == False :
-        X_train, y_train, X_test, y_test = split_data(X_tensor,y_tensor)
-    else:
-        X_balanced, y_balanced = do_smote(X_tensor, y_tensor, cluster)
-        X_train, y_train, X_test, y_test = split_data(X_balanced,y_balanced) 
+    X_train = torch.tensor(X_train.toarray(), dtype=torch.float32).to(device)
+    y_train = torch.tensor(y_train, dtype=torch.long).to(device)
+    X_test = torch.tensor(X_test.toarray(), dtype=torch.float32).to(device)
+    y_test = torch.tensor(y_test, dtype=torch.long).to(device)
     train_data = TensorDataset(X_train, y_train)
     test_data = TensorDataset(X_test, y_test)
 
@@ -80,9 +121,10 @@ def preprocess_data(device, adata, samp=False, cluster=False):
 
 
 def split_data(X,y):
+    print("Splitting data into train and test sets")
     SAMPLING_FRACS = [1.0]
     for frac in SAMPLING_FRACS:
-        sss = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=2022) #update Aug 2023: hold train/val across all runs #same train/val set split for each frac in k
+        sss = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=2022)
         for index_train, index_val in sss.split(X, y):
             index_train_small = np.random.choice(index_train, round(index_train.shape[0]*frac), replace=False)
             X_train, y_train = X[index_train_small], y[index_train_small]
@@ -128,9 +170,8 @@ def train_logistic_regression(X, y):
     model : LogisticRegression
         Trained logistic regression model.
     """
-
+    print("Training Logistic Regression model")
     model = LogisticRegression(penalty="l1", C=0.1,solver="liblinear")
-    print(model)
     model.fit(X, y)
     return model
 
@@ -150,7 +191,7 @@ def train_sgd(X,y):
     model : SGDClassifier
         Trained SGDClassifier.
     """
-
+    print("Training SGDClassifier model")
     model = SGDClassifier(max_iter=1000, tol=1e-3)
     model.fit(X, y)
     return model
@@ -171,12 +212,12 @@ def train_xgboost(X, y):
     model : XGBClassifier
         Trained XGBoost model.
     """
-
+    print("Training XGBoost model")
     model = XGBClassifier(use_label_encoder=False, eval_metric='mlogloss')
     model.fit(X, y)
     return model
 
-def evaluate_model(clf, X, y, label_encoder=None, mode="",model="",down_samp=""):
+def evaluate_model(clf, X, y, label_encoder=None, mode="",model="",samp=""):
 
     """
     Evaluate the given model on the data and log the results.
@@ -195,21 +236,21 @@ def evaluate_model(clf, X, y, label_encoder=None, mode="",model="",down_samp="")
         "train" or "test", used for tracking output.
     model : str
         Model name, e.g. "lr" or "rf".
-    down_samp : bool or str
+    samp : bool or str
         Whether dataset was downsampled.
 
     Returns:
     --------
     None
     """
-
+    print(f"Evaluating {model} model on {mode} data")
     y_pred = clf.predict(X)
     acc = accuracy_score(y, y_pred)
     results = {
         'Mode': [mode],
         'Overall Accuracy': [acc],
         'Model':[model],
-        'Down sampling':[down_samp]
+        'Down sampling':[samp]
     }
     base_dir = os.path.dirname(os.path.abspath(__file__))
     results_dir = os.path.join(base_dir, 'results')
@@ -226,11 +267,11 @@ def evaluate_model(clf, X, y, label_encoder=None, mode="",model="",down_samp="")
     if mode == "test":
         val_macro_f1 = f1_score(y, y_pred, average="macro")
         results['Macro F1'] = [val_macro_f1]
-        plot_filename = os.path.join(results_dir, f"confusion_matrix_{model}_{'down' if down_samp else 'full'}.png")
+        plot_filename = os.path.join(results_dir, f"confusion_matrix_{model}_{'smote' if samp else 'raw'}.png")
         plot_confusion_matrix(y,y_pred,label_encoder,plot_filename)
     df = pd.DataFrame(results)
 
-    results_file = os.path.join(results_dir, f"results_file_{model}_{'down' if down_samp else 'full'}.csv")
+    results_file = os.path.join(results_dir, f"results_file_{model}_{'smote' if samp else 'raw'}.csv")
     if os.path.exists(results_file):
         os.remove(results_file)
     df.to_csv(results_file, mode='a', header=not os.path.exists(results_file), index=False)

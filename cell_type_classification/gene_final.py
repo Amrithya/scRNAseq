@@ -11,7 +11,7 @@ import nn_model as nnm
 from sklearn.preprocessing import LabelEncoder
 
 
-def run_model(model,X_train, y_train, X_test, y_test, down_samp, le):
+def run_model(model,X_train, y_train, X_test, y_test, samp, le):
     """
     Trains and evaluates a classification model (Logistic Regression or Random Forest)
     on the given AnnData object. Optionally performs downsampling to balance class labels.
@@ -36,24 +36,24 @@ def run_model(model,X_train, y_train, X_test, y_test, down_samp, le):
     """
     if model == "lr":
         lr = h.train_logistic_regression(X_train, y_train)
-        h.evaluate_model(lr, X_train, y_train,"train",model,down_samp)
-        h.evaluate_model(lr, X_test, y_test,"test",model,down_samp)
+        h.evaluate_model(lr, X_train, y_train,le,"train",model,samp)
+        h.evaluate_model(lr, X_test, y_test,le,"test",model,samp)
         #h.shap_explainer(lr, X_train, X_test)
     elif model == "rf":
         rf = h.train_rf(X_train, y_train)
-        h.evaluate_model(rf, X_train, y_train, le,"train",model,down_samp)
-        h.evaluate_model(rf, X_test, y_test, le,"test",model,down_samp)
+        h.evaluate_model(rf, X_train, y_train, le,"train",model,samp)
+        h.evaluate_model(rf, X_test, y_test, le,"test",model,samp)
         #h.shap_explainer(lr, X_train, X_test)
 
     elif model == "sgd":
         rf = h.train_sgd(X_train, y_train)
-        h.evaluate_model(rf, X_train, y_train, le,"train",model,down_samp)
-        h.evaluate_model(rf, X_test, y_test, le,"test",model,down_samp)
+        h.evaluate_model(rf, X_train, y_train, le,"train",model,samp)
+        h.evaluate_model(rf, X_test, y_test, le,"test",model,samp)
         #h.shap_explainer(lr, X_train, X_test)
     elif model == "xg":
         xg = h.train_xgboost(X_train, y_train)
-        h.evaluate_model(xg, X_train, y_train, le,"train",model,down_samp)
-        h.evaluate_model(xg, X_test, y_test, le,"test",model,down_samp)
+        h.evaluate_model(xg, X_train, y_train, le,"train",model,samp)
+        h.evaluate_model(xg, X_test, y_test, le,"test",model,samp)
         #h.shap_explainer(lr, X_train, X_test)
      
 
@@ -76,7 +76,7 @@ if __name__ == "__main__":
 
     Example usage:
         python gene_final.py -m rf -d -c  # if you run on cluster,include -c
-        python gene_final.py --model lr --down_samp
+        python gene_final.py --model lr --samp
     """
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -88,9 +88,9 @@ if __name__ == "__main__":
                                 help='model name',
                                 type=str)
     
-    cmdline_parser.add_argument('-d', '--down_samp',
+    cmdline_parser.add_argument('-d', '--samp',
                                 action='store_true',
-                                help='enable down sampling')
+                                help='enable sampling')
     
     cmdline_parser.add_argument('-c', '--cluster',
                                 action='store_true',
@@ -103,15 +103,10 @@ if __name__ == "__main__":
     
     args, unknowns = cmdline_parser.parse_known_args()
 
-    if args.cluster:
-        adata = sc.read_h5ad('/data1/data/corpus/pbmc68k(2).h5ad')
-    else:
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        file_path = os.path.join(current_dir, '..', 'data', 'pbmc68k(2).h5ad')
-        adata = sc.read_h5ad(file_path)
+    X_train, y_train, X_test, y_test, le = h.load_data(args.samp, args.cluster)
 
     if args.model == "nn":
-        train_data, test_data, weights,le, input_size, output_size  = h.preprocess_data(device, adata, args.down_samp, args.cluster)
+        train_data, test_data, weights,le, input_size, output_size  = h.preprocess_data_nn(device, X_train, y_train, X_test, y_test,le)
         hidden_sizes = [64, 128, 256]
         lr_rates = [0.001]
         dropout_rates = [0.0, 0.3]
@@ -126,7 +121,6 @@ if __name__ == "__main__":
             print(f"Hidden: {hidden_size}, LR: {lr}, Dropout: {dropout} => Train Accuracy: {train_acc:.2f}, Test Accuracy: {acc:.2f}%")
 
     else:
-        X_train, y_train, X_test, y_test, le = h.preprocess_data(adata, args.down_samp, args.cluster)
-        run_model(args.model, X_train, y_train, X_test, y_test, args.down_samp, le)
+        run_model(args.model, X_train, y_train, X_test, y_test, args.samp, le)
     
 
