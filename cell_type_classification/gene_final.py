@@ -118,7 +118,7 @@ if __name__ == "__main__":
                     test_accuracy,train_accuracy = nnm.train_nn(device, train_data, test_data, lr, weights, input_size, output_size, dropout, hidden_size)
                     results.append((hidden_size,lr, dropout, train_accuracy,test_accuracy))
         print("\nSummary of Results:")
-        for hidden_size, dropout, lr, train_acc, acc in results:
+        for hidden_size, lr, dropout, train_acc, acc in results:
             print(f"Hidden: {hidden_size}, LR: {lr}, Dropout: {dropout} => Train Accuracy: {train_acc:.2f}, Test Accuracy: {acc:.2f}%")
 
     else:
