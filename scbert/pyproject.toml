@@ -5,19 +5,14 @@ description = ""
 authors = ["Amrithya <amrithyarao1999@gmail.com>"]
 
 [tool.poetry.dependencies]
-python = ">=3.9"
-numpy = "1.20"  # Locked version
-pandas = "1.1.5"
-scipy = "1.5.4"
-scikit-learn = "0.24.2"
-matplotlib = "<3.7"  # Override latest constraint
+python = ">=3.10"
+matplotlib = "^3.10.1"
+scanpy = "^1.11.1"
+numpy = "^2.2.5"
 xgboost = "^3.0.0"
-torch = "1.8.1"
-torchvision = "0.9.1"
-transformers = "4.6.1"
+torch = ">=1.13.1"
 imbalanced-learn = "^0.13.0"
-einops = "0.6.0"
-scanpy = "1.7.2"
+
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
