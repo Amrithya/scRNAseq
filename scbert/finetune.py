@@ -45,7 +45,7 @@ parser.add_argument("--ckpt_dir", type=str, default='./ckpts/', help='Directory 
 parser.add_argument("--model_name", type=str, default='finetune', help='Finetuned model name.')
 
 args = parser.parse_args()
-rank = int(os.environ["RANK"])
+rank = int(os.environ["LOCAL_RANK"])
 local_rank = args.local_rank
 is_master = local_rank == 0
 
