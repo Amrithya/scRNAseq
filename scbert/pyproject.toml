@@ -12,6 +12,10 @@ numpy = "^2.2.5"
 xgboost = "^3.0.0"
 torch = ">=1.13.1"
 imbalanced-learn = "^0.13.0"
+transformers = "^4.51.3"
+torchvision = "^0.22.0"
+einops = "^0.8.1"
+local-attention = "^1.11.1"
 
 
 [tool.poetry.dev-dependencies]
