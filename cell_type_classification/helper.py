@@ -18,7 +18,7 @@ from sklearn.ensemble import RandomForestClassifier
 from torch.utils.data import DataLoader, TensorDataset
 from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.utils.class_weight import compute_class_weight
-from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, classification_report
+from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, precision_score, recall_score 
 
 
 def load_data(samp,cluster):
@@ -45,7 +45,7 @@ def load_data(samp,cluster):
     else:
         current_dir = os.path.dirname(os.path.abspath(__file__))
         if samp:
-            file_path = os.path.join(current_dir, '..', 'data', 'pbmc68k_balanced_data.h5ad')
+            file_path = os.path.join(current_dir, '..', 'data', 'pbmc68k_balanced_data2.h5ad')
             if os.path.exists(file_path):
                 print("Loading balanced and preprocessed data on local")
                 adata = sc.read_h5ad(file_path)
@@ -265,10 +265,14 @@ def evaluate_model(clf, X, y, label_encoder=None, mode="",model="",samp=""):
         results[f"{class_name}"] = [class_accuracy]
 
     if mode == "test":
-        val_macro_f1 = f1_score(y, y_pred, average="macro")
-        results['Macro F1'] = [val_macro_f1]
-        plot_filename = os.path.join(results_dir, f"confusion_matrix_{model}_{'smote' if samp else 'raw'}.png")
-        plot_confusion_matrix(y,y_pred,label_encoder,plot_filename)
+        macro_accuracy = np.mean(list(class_accuracies.values()))
+        results['Macro Accuracy'] = [macro_accuracy]
+        results['Micro F1'] = [f1_score(y, y_pred, average='micro')]
+        results['Macro F1'] = [f1_score(y, y_pred, average='macro')]
+        results['Micro Precision'] = [precision_score(y, y_pred, average='micro')]
+        results['Macro Precision'] = [precision_score(y, y_pred, average='macro')]
+        results['Micro Recall'] = [recall_score(y, y_pred, average='micro')]
+        results['Macro Recall'] = [recall_score(y, y_pred, average='macro')]
     df = pd.DataFrame(results)
 
     results_file = os.path.join(results_dir, f"results_file_{model}_{'smote' if samp else 'raw'}.csv")
