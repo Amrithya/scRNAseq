@@ -12,6 +12,8 @@ numpy = "^2.2.5"
 xgboost = "^3.0.0"
 torch = ">=1.13.1"
 imbalanced-learn = "^0.13.0"
+lime = "^0.2.0.1"
+shap = "^0.47.2"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"

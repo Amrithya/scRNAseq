@@ -1,5 +1,6 @@
 import os
 import torch
+import shap
 import numpy as np
 import pandas as pd
 import scanpy as sc
@@ -13,8 +14,9 @@ from scipy.sparse import issparse
 from imblearn.over_sampling import SMOTE
 from sklearn.linear_model import SGDClassifier
 from sklearn.preprocessing import LabelEncoder
-from sklearn.linear_model import LogisticRegression
+from lime.lime_tabular import LimeTabularExplainer
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
 from torch.utils.data import DataLoader, TensorDataset
 from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.utils.class_weight import compute_class_weight
@@ -358,11 +360,23 @@ def shap_explain(clf,X_train, X_test):
     - model: Trained logistic regression model
     - explainer: SHAP explainer object
     """
-
+    print("Explaining model predictions using SHAP")
     explainer = shap.Explainer(clf, X_train)
     shap_values = explainer(X_test)
     shap.summary_plot(shap_values, X_test)
     shap.force_plot(shap_values[0])
     shap.dependence_plot("mean radius", shap_values, X_test)
 
+def lime_explain(clf, X_train, X_test, le):
+    """
+    Function to explain a classifier's predictions using LIME.
+    
+    Returns:
+    - lime_explainer: LIME explainer object
+    """
 
+    print("Explaining model predictions using LIME")
+    lime_explainer = LimeTabularExplainer(X_train, feature_names=le.classes_, class_names=le.classes_, mode="classification")
+    for i in range(5):
+        exp = lime_explainer.explain_instance(X_test[i], clf.predict_proba, num_features=10)
+        exp.show_in_notebook(show_table=True)
