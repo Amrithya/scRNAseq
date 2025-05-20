@@ -30,7 +30,7 @@ parser.add_argument("--seed", type=int, default=2021, help='Random seed.')
 parser.add_argument("--novel_type", type=bool, default=False, help='Novel cell tpye exists or not.')
 parser.add_argument("--unassign_thres", type=float, default=0.5, help='The confidence score threshold for novel cell type annotation.')
 parser.add_argument("--pos_embed", type=bool, default=True, help='Using Gene2vec encoding or not.')
-parser.add_argument("--data_path", type=str, default='./data/Zheng68K.h5ad', help='Path of data for predicting.')
+#parser.add_argument("--data_path", type=str, default='./data/Zheng68K.h5ad', help='Path of data for predicting.')
 parser.add_argument("--model_path", type=str, default='./finetuned.pth', help='Path of finetuned model.')
 
 args = parser.parse_args()
@@ -44,6 +44,10 @@ UNASSIGN_THRES = args.unassign_thres if UNASSIGN == True else 0
 CLASS = args.bin_num + 2
 POS_EMBED_USING = args.pos_embed
 
+current_dir = os.path.dirname(os.path.abspath(__file__))
+file_path = os.path.join(current_dir, '..', 'data', 'Zheng68K.h5ad')
+print("####################",torch.cuda.is_available())
+print("####################",torch.cuda.get_device_name(0))
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class Identity(torch.nn.Module):
@@ -73,7 +77,7 @@ class Identity(torch.nn.Module):
         x = self.fc3(x)
         return x
 
-data = sc.read_h5ad(args.data_path)
+data = sc.read_h5ad(file_path)
 #load the label stored during the fine-tune stage
 with open('label_dict', 'rb') as fp:
     label_dict = pkl.load(fp)
