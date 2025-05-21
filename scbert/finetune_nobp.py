@@ -69,9 +69,11 @@ class Identity(nn.Module):
         self.act2 = nn.ReLU()
         self.dropout2 = nn.Dropout(dropout)
         self.fc3 = nn.Linear(h_dim, out_dim)
+        self._printed = False
 
     def forward(self, x):
-        print(f"Shape after Performer, before Identity: {x.shape}")
+        if not self._printed:
+            print(f"Shape after Performer, before Identity: {x.shape}")
         x = x[:,None,:,:]
         x = self.conv1(x)
         x = self.act(x)
@@ -82,8 +84,11 @@ class Identity(nn.Module):
         x = self.fc2(x)
         x = self.act2(x)
         x = self.dropout2(x)
-        print(f"Shape after Identity: {x.shape}")
-        return self.fc3(x)
+        x = self.fc3(x)
+        if not self._printed:
+            print(f"Shape after Identity: {x.shape}")
+            self._printed = True
+        return 
 
 data = sc.read_h5ad(args.data_path)
 label_dict, label = np.unique(data.obs['celltype'], return_inverse=True)
