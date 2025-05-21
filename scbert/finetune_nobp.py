@@ -134,12 +134,21 @@ train_loader = DataLoader(train_dataset, batch_size=args.batch_size,
 val_sampler = DistributedSampler(val_dataset)
 val_loader = DataLoader(val_dataset, batch_size=args.batch_size, 
                        sampler=val_sampler, num_workers=2, pin_memory=True)
+
+print("model:", model)
 print(f"Train dataset size: {len(train_dataset)}")
 print(f"Validation dataset size: {len(val_dataset)}")
 print("Train and validation datasets loaded successfully.")
 print("is_master:", is_master)
 
+for i, (x, y) in enumerate(train_loader):
+    print(f"Batch {i}, x shape: {x.shape}, y shape: {y.shape}")
+    if i == 1:
+        break
+
 for epoch in range(args.epoch):
+    print(f"[Rank {local_rank}] Starting epoch {epoch}")
+
     model.train()
     train_sampler.set_epoch(epoch)
     total_loss = 0.0
