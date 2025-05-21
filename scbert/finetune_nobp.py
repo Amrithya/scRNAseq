@@ -3,7 +3,6 @@ import argparse
 import numpy as np
 import pickle as pkl
 import torch
-import pandas as pd
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.distributed import DistributedSampler
@@ -19,7 +18,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--local_rank", "--local-rank", type=int, default=-1)
 parser.add_argument("--bin_num", type=int, default=5)
 parser.add_argument("--gene_num", type=int, default=16906)
-parser.add_argument("--epoch", type=int, default=100)
+parser.add_argument("--epoch", type=int, default=10)
 parser.add_argument("--seed", type=int, default=2021)
 parser.add_argument("--batch_size", type=int, default=3)
 parser.add_argument("--pos_embed", type=bool, default=True)
@@ -32,9 +31,12 @@ args = parser.parse_args()
 local_rank = args.local_rank
 is_master = local_rank == 0
 
-dist.init_process_group(backend='nccl')
-torch.cuda.set_device(local_rank)
-device = torch.device("cuda", local_rank)
+if local_rank >= 0:
+    dist.init_process_group(backend='nccl')
+    torch.cuda.set_device(local_rank)
+    device = torch.device("cuda", local_rank)
+else:
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 CLASS = args.bin_num + 2
 SEQ_LEN = args.gene_num + 1
@@ -112,22 +114,66 @@ model = PerformerLM(
     g2v_position_emb=args.pos_embed
 )
 
-ckpt = torch.load(args.model_path)
+ckpt = torch.load(args.model_path, map_location='cpu')
 model.load_state_dict(ckpt['model_state_dict'])
 
 model.to_out = Identity(dropout=0., h_dim=128, out_dim=len(label_dict))
 model = model.to(device)
-model = DDP(model, device_ids=[local_rank])
+
+if local_rank >= 0:
+    model = DDP(model, device_ids=[local_rank])
 
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
-train_sampler = DistributedSampler(train_dataset)
-train_loader = DataLoader(train_dataset, batch_size=args.batch_size, sampler=train_sampler, num_workers=2, pin_memory=True)
+train_sampler = DistributedSampler(train_dataset) if local_rank >= 0 else None
+train_loader = DataLoader(
+    train_dataset,
+    batch_size=args.batch_size,
+    sampler=train_sampler,
+    shuffle=(train_sampler is None),
+    num_workers=2,
+    pin_memory=True,
+)
+
+val_sampler = DistributedSampler(val_dataset) if local_rank >= 0 else None
+val_loader = DataLoader(
+    val_dataset,
+    batch_size=args.batch_size,
+    sampler=val_sampler,
+    shuffle=False,
+    num_workers=2,
+    pin_memory=True,
+)
+
+def validate():
+    model.eval()
+    all_preds, all_labels = [], []
+    with torch.no_grad():
+        for data_val, labels_val in val_loader:
+            data_val = data_val.to(device)
+            labels_val = labels_val.to(device)
+            logits = model(data_val)
+            preds = logits.argmax(dim=-1)
+            all_preds.append(preds.cpu())
+            all_labels.append(labels_val.cpu())
+    all_preds = torch.cat(all_preds).numpy()
+    all_labels = torch.cat(all_labels).numpy()
+    acc = accuracy_score(all_labels, all_preds)
+    f1 = f1_score(all_labels, all_preds, average='weighted')
+    if is_master:
+        print("\nValidation Results on Full Dataset:")
+        print(f"Accuracy: {acc:.4f}")
+        print(f"F1 Score (weighted): {f1:.4f}")
+        print("Confusion matrix:")
+        print(confusion_matrix(all_labels, all_preds))
+    return acc, f1
 
 for epoch in range(args.epoch):
     model.train()
-    train_sampler.set_epoch(epoch)
+    if train_sampler is not None:
+        train_sampler.set_epoch(epoch)
+    total_loss = 0
     for data_train, labels_train in train_loader:
         data_train = data_train.to(device)
         labels_train = labels_train.to(device)
@@ -137,47 +183,27 @@ for epoch in range(args.epoch):
         loss = criterion(logits, labels_train)
         loss.backward()
         optimizer.step()
+
         total_loss += loss.item()
+
     if is_master:
         print(f"Epoch {epoch+1}/{args.epoch}, Loss: {total_loss / len(train_loader):.4f}")
 
-val_sampler = DistributedSampler(val_dataset)
-val_loader = DataLoader(val_dataset, batch_size=args.batch_size, sampler=val_sampler, num_workers=2, pin_memory=True)
+    if (epoch + 1) % 5 == 0 or (epoch + 1) == args.epoch:
+        validate()
 
-all_preds = []
-all_labels = []
-
-model.eval()
-with torch.no_grad():
-    for data_val, labels_val in val_loader:
-        data_val = data_val.to(device)
-        labels_val = labels_val.to(device)
-        logits = model(data_val)
-        preds = logits.argmax(dim=-1)
-        all_preds.append(preds.cpu())
-        all_labels.append(labels_val.cpu())
-
-print(f"Logits shape: {logits.shape}")
+validate()
 
 if is_master:
-    all_preds = torch.cat(all_preds).numpy()
-    all_labels = torch.cat(all_labels).numpy()
-    acc = accuracy_score(all_labels, all_preds)
-    f1 = f1_score(all_labels, all_preds, average='weighted')
-    print("\nValidation Results on Full Dataset:")
-    print(f"Accuracy: {acc:.4f}")
-    print(f"F1 Score (weighted): {f1:.4f}")
-    print("Confusion matrix:")
-    print(confusion_matrix(all_labels, all_preds))
-
     os.makedirs(args.ckpt_dir, exist_ok=True)
     save_path = os.path.join(args.ckpt_dir, f"{args.model_name}.pth")
     torch.save({
-        'model_state_dict': model.module.state_dict(),
+        'model_state_dict': model.module.state_dict() if local_rank >= 0 else model.state_dict(),
         'label_dict': label_dict,
         'args': vars(args)
     }, save_path)
     print(f"\nModel successfully saved to {save_path}")
 
-dist.barrier()
-dist.destroy_process_group()
+if local_rank >= 0:
+    dist.barrier()
+    dist.destroy_process_group()
