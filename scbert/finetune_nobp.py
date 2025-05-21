@@ -3,7 +3,6 @@ import argparse
 import numpy as np
 import pickle as pkl
 import torch
-
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.distributed import DistributedSampler
@@ -15,6 +14,7 @@ from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.metrics import confusion_matrix, accuracy_score, f1_score
 import random
 
+# Set up argument parser
 parser = argparse.ArgumentParser()
 parser.add_argument("--local_rank", "--local-rank", type=int, default=-1)
 parser.add_argument("--bin_num", type=int, default=5)
@@ -29,9 +29,13 @@ parser.add_argument("--ckpt_dir", type=str, default='./ckpts/')
 parser.add_argument("--model_name", type=str, default='finetune_ready')
 args = parser.parse_args()
 
+random.seed(args.seed)
+np.random.seed(args.seed)
+torch.manual_seed(args.seed)
+torch.cuda.manual_seed_all(args.seed)
+
 local_rank = args.local_rank
 is_master = local_rank == 0
-
 dist.init_process_group(backend='nccl')
 torch.cuda.set_device(local_rank)
 device = torch.device("cuda", local_rank)
@@ -94,9 +98,10 @@ label = torch.from_numpy(label)
 data = data.X
 
 if is_master:
-    with open('label_dict.pkl', 'wb') as f:
+    os.makedirs(args.ckpt_dir, exist_ok=True)
+    with open(os.path.join(args.ckpt_dir, 'label_dict.pkl'), 'wb') as f:
         pkl.dump(label_dict, f)
-    with open('label.pkl', 'wb') as f:
+    with open(os.path.join(args.ckpt_dir, 'label.pkl'), 'wb') as f:
         pkl.dump(label, f)
 
 sss = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=args.seed)
@@ -113,43 +118,71 @@ model = PerformerLM(
     g2v_position_emb=args.pos_embed
 )
 
-ckpt = torch.load(args.model_path)
+ckpt = torch.load(args.model_path, map_location='cpu')
 model.load_state_dict(ckpt['model_state_dict'])
 
 model.to_out = Identity(dropout=0., h_dim=128, out_dim=len(label_dict))
 model = model.to(device)
 model = DDP(model, device_ids=[local_rank])
 
+criterion = nn.CrossEntropyLoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+
+train_sampler = DistributedSampler(train_dataset)
+train_loader = DataLoader(train_dataset, batch_size=args.batch_size, 
+                         sampler=train_sampler, num_workers=2, pin_memory=True)
+
 val_sampler = DistributedSampler(val_dataset)
-val_loader = DataLoader(val_dataset, batch_size=args.batch_size, sampler=val_sampler, num_workers=4, pin_memory=True)
+val_loader = DataLoader(val_dataset, batch_size=args.batch_size, 
+                       sampler=val_sampler, num_workers=2, pin_memory=True)
 
-all_preds = []
-all_labels = []
+for epoch in range(args.epoch):
+    model.train()
+    train_sampler.set_epoch(epoch)
+    total_loss = 0.0
+    
+    for data_train, labels_train in train_loader:
+        data_train = data_train.to(device)
+        labels_train = labels_train.to(device)
 
-model.eval()
-with torch.no_grad():
-    for data_val, labels_val in val_loader:
-        data_val = data_val.to(device)
-        labels_val = labels_val.to(device)
-        logits = model(data_val)
-        preds = logits.argmax(dim=-1)
-        all_preds.append(preds.cpu())
-        all_labels.append(labels_val.cpu())
-
-print(f"Logits shape: {logits.shape}")
+        optimizer.zero_grad()
+        logits = model(data_train)
+        loss = criterion(logits, labels_train)
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        optimizer.step()
+        total_loss += loss.item()
+    
+    if is_master:
+        print(f"Epoch {epoch+1}/{args.epoch}, Loss: {total_loss / len(train_loader):.4f}")
 
 if is_master:
+    model.eval()
+    all_preds = []
+    all_labels = []
+    
+    with torch.no_grad():
+        for data_val, labels_val in val_loader:
+            data_val = data_val.to(device)
+            labels_val = labels_val.to(device)
+            logits = model(data_val)
+            preds = logits.argmax(dim=-1)
+            all_preds.append(preds.cpu())
+            all_labels.append(labels_val.cpu())
+
+    print(f"Logits shape: {logits.shape}")
+
     all_preds = torch.cat(all_preds).numpy()
     all_labels = torch.cat(all_labels).numpy()
     acc = accuracy_score(all_labels, all_preds)
     f1 = f1_score(all_labels, all_preds, average='weighted')
+    
     print("\nValidation Results on Full Dataset:")
     print(f"Accuracy: {acc:.4f}")
     print(f"F1 Score (weighted): {f1:.4f}")
     print("Confusion matrix:")
     print(confusion_matrix(all_labels, all_preds))
 
-    os.makedirs(args.ckpt_dir, exist_ok=True)
     save_path = os.path.join(args.ckpt_dir, f"{args.model_name}.pth")
     torch.save({
         'model_state_dict': model.module.state_dict(),
