@@ -134,6 +134,10 @@ train_loader = DataLoader(train_dataset, batch_size=args.batch_size,
 val_sampler = DistributedSampler(val_dataset)
 val_loader = DataLoader(val_dataset, batch_size=args.batch_size, 
                        sampler=val_sampler, num_workers=2, pin_memory=True)
+print(f"Train dataset size: {len(train_dataset)}")
+print(f"Validation dataset size: {len(val_dataset)}")
+print("Train and validation datasets loaded successfully.")
+print("is_master:", is_master)
 
 for epoch in range(args.epoch):
     model.train()
