@@ -71,6 +71,7 @@ class Identity(nn.Module):
         self.fc3 = nn.Linear(h_dim, out_dim)
 
     def forward(self, x):
+        print(f"Shape after Performer, before Identity: {x.shape}")
         x = x[:,None,:,:]
         x = self.conv1(x)
         x = self.act(x)
@@ -81,6 +82,7 @@ class Identity(nn.Module):
         x = self.fc2(x)
         x = self.act2(x)
         x = self.dropout2(x)
+        print(f"Shape after Identity: {x.shape}")
         return self.fc3(x)
 
 data = sc.read_h5ad(args.data_path)
@@ -127,11 +129,12 @@ with torch.no_grad():
     for batch in val_loader:
         data_val, labels_val = batch
         logits = model(data_val)
-        print(f"Logits shape: {logits.shape}") 
         preds = logits.argmax(dim=-1)
 
         all_preds.append(preds.cpu())
         all_labels.append(labels_val.cpu())
+print(f"Logits shape: {logits.shape}") 
+
 
 if is_master:
     all_preds = torch.cat(all_preds).numpy()
