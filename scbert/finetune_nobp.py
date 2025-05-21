@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import pickle as pkl
 import torch
-import random
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.distributed import DistributedSampler
@@ -14,9 +13,10 @@ import torch.distributed as dist
 from performer_pytorch import PerformerLM
 import scanpy as sc
 from sklearn.model_selection import StratifiedShuffleSplit
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import confusion_matrix
+import random
+from sklearn.metrics import confusion_matrix, accuracy_score, f1_score
 
-# Initialize distributed training
 parser = argparse.ArgumentParser()
 parser.add_argument("--local_rank","--local-rank", type=int, default=-1)
 parser.add_argument("--bin_num", type=int, default=5)
@@ -123,18 +123,34 @@ model = model.to(device)
 model = DDP(model, device_ids=[local_rank])
 
 model.eval()
-val_loader = DataLoader(val_dataset, batch_size=args.batch_size, 
-                       sampler=DistributedSampler(val_dataset))
+val_loader = DataLoader(val_dataset, batch_size=args.batch_size, sampler=DistributedSampler(val_dataset))
 
+all_preds = []
+all_labels = []
+
+model.eval()
 with torch.no_grad():
-    data_val, labels_val = next(iter(val_loader))
-    logits = model(data_val) 
-    preds = logits.argmax(dim=-1)
-    
-    if is_master:
-        print("\nConfusion matrix:")
-        print(confusion_matrix(labels_val.cpu(), preds.cpu()))
+    for batch in val_loader:
+        data_val, labels_val = batch
+        logits = model(data_val)
+        preds = logits.argmax(dim=-1)
 
+        all_preds.append(preds.cpu())
+        all_labels.append(labels_val.cpu())
+
+if is_master:
+    all_preds = torch.cat(all_preds).numpy()
+    all_labels = torch.cat(all_labels).numpy()
+
+    acc = accuracy_score(all_labels, all_preds)
+    f1 = f1_score(all_labels, all_preds, average='weighted')
+    
+    print("\nValidation Results on Full Dataset:")
+    print(f"Accuracy: {acc:.4f}")
+    print(f"F1 Score (weighted): {f1:.4f}")
+    print("Confusion matrix:")
+    print(confusion_matrix(all_labels, all_preds))
+    
 if is_master:
     os.makedirs(args.ckpt_dir, exist_ok=True)
     save_path = os.path.join(args.ckpt_dir, f"{args.model_name}.pth")
@@ -146,3 +162,4 @@ if is_master:
     print(f"\nModel successfully saved to {save_path}")
 
 dist.barrier()
+dist.destroy_process_group()
