@@ -88,7 +88,7 @@ class Identity(nn.Module):
         if not self._printed:
             print(f"Shape after Identity: {x.shape}")
             self._printed = True
-        return 
+        return x
 
 data = sc.read_h5ad(args.data_path)
 label_dict, label = np.unique(data.obs['celltype'], return_inverse=True)
