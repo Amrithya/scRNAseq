@@ -159,6 +159,11 @@ for epoch in range(10):
 
         optimizer.zero_grad()
         logits = model(data_train)
+        print(f"logits shape: {logits.shape}")
+        print(f"labels_train: {labels_train}")
+        print(f"labels_train.dtype: {labels_train.dtype}")
+        print(f"labels_train min/max: {labels_train.min().item()} / {labels_train.max().item()}")
+
         loss = criterion(logits, labels_train)
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
