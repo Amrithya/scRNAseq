@@ -133,6 +133,7 @@ with torch.no_grad():
     for batch in val_loader:
         data_val, labels_val = batch
         logits = model(data_val)
+        print(f"Logits shape: {logits.shape}") 
         preds = logits.argmax(dim=-1)
 
         all_preds.append(preds.cpu())
