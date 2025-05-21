@@ -33,8 +33,8 @@ local_rank = args.local_rank
 is_master = local_rank == 0
 
 dist.init_process_group(backend='nccl')
-torch.cuda.set_device(1)
-device = torch.device("cuda", 1)
+torch.cuda.set_device(local_rank)
+device = torch.device("cuda", local_rank)
 
 CLASS = args.bin_num + 2
 SEQ_LEN = args.gene_num + 1
