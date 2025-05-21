@@ -129,11 +129,11 @@ optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
 train_sampler = DistributedSampler(train_dataset)
 train_loader = DataLoader(train_dataset, batch_size=args.batch_size, 
-                         sampler=train_sampler, num_workers=2, pin_memory=True)
+                         sampler=train_sampler, pin_memory=True)
 
 val_sampler = DistributedSampler(val_dataset)
 val_loader = DataLoader(val_dataset, batch_size=args.batch_size, 
-                       sampler=val_sampler, num_workers=2, pin_memory=True)
+                       sampler=val_sampler, pin_memory=True)
 
 print("model:", model)
 print(f"Train dataset size: {len(train_dataset)}")
@@ -153,7 +153,8 @@ for epoch in range(10):
     train_sampler.set_epoch(epoch)
     total_loss = 0.0
     
-    for data_train, labels_train in train_loader:
+    for batch_idx, (data_train, labels_train) in enumerate(train_loader):
+        print(f"[Rank {local_rank}] Epoch {epoch} - Batch {batch_idx}")
         data_train = data_train.to(device)
         labels_train = labels_train.to(device)
 
