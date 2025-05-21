@@ -119,6 +119,28 @@ model.to_out = Identity(dropout=0., h_dim=128, out_dim=len(label_dict))
 model = model.to(device)
 model = DDP(model, device_ids=[local_rank])
 
+criterion = nn.CrossEntropyLoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+
+train_sampler = DistributedSampler(train_dataset)
+train_loader = DataLoader(train_dataset, batch_size=args.batch_size, sampler=train_sampler, num_workers=2, pin_memory=True)
+
+for epoch in range(args.epoch):
+    model.train()
+    train_sampler.set_epoch(epoch)
+    for data_train, labels_train in train_loader:
+        data_train = data_train.to(device)
+        labels_train = labels_train.to(device)
+
+        optimizer.zero_grad()
+        logits = model(data_train)
+        loss = criterion(logits, labels_train)
+        loss.backward()
+        optimizer.step()
+        total_loss += loss.item()
+    if is_master:
+        print(f"Epoch {epoch+1}/{args.epoch}, Loss: {total_loss / len(train_loader):.4f}")
+
 val_sampler = DistributedSampler(val_dataset)
 val_loader = DataLoader(val_dataset, batch_size=args.batch_size, sampler=val_sampler, num_workers=2, pin_memory=True)
 
