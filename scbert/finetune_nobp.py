@@ -121,12 +121,19 @@ model = PerformerLM(
 ckpt = torch.load(args.model_path, map_location='cpu')
 model.load_state_dict(ckpt['model_state_dict'])
 
+for param in model.parameters():
+    param.requires_grad = False
+
 model.to_out = Identity(dropout=0., h_dim=128, out_dim=len(label_dict))
+model.to_out.requires_grad_(True)
 model = model.to(device)
 model = DDP(model, device_ids=[local_rank])
 
+trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+print(f"Trainable parameters: {trainable_params}")
+
 criterion = nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=1e-4)
 
 train_sampler = DistributedSampler(train_dataset)
 train_loader = DataLoader(train_dataset, batch_size=args.batch_size, 
