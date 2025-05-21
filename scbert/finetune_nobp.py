@@ -151,6 +151,8 @@ for epoch in range(10):
 
     model.train()
     train_sampler.set_epoch(epoch)
+    print(f"[Rank {local_rank}] Beginning epoch {epoch} with {len(train_loader)} batches")
+
     total_loss = 0.0
     
     for batch_idx, (data_train, labels_train) in enumerate(train_loader):
