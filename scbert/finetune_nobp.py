@@ -53,7 +53,7 @@ class SCDataset(Dataset):
         full_seq[full_seq > (CLASS - 2)] = CLASS - 2
         full_seq = torch.from_numpy(full_seq).long()
         full_seq = torch.cat((full_seq, torch.tensor([0])))
-        print(f"[Dataset] Index {index}, Label: {label}")
+        #print(f"[Dataset] Index {index}, Label: {label}")
         return full_seq, self.label[index]
 
     def __len__(self):
@@ -136,44 +136,38 @@ val_sampler = DistributedSampler(val_dataset)
 val_loader = DataLoader(val_dataset, batch_size=args.batch_size, 
                        sampler=val_sampler,num_workers=0, pin_memory=True)
 
-print("model:", model)
-print(f"Train dataset size: {len(train_dataset)}")
-print(f"Validation dataset size: {len(val_dataset)}")
-print("Train and validation datasets loaded successfully.")
-print("is_master:", is_master)
-
 for i, (x, y) in enumerate(train_loader):
-    print(f"Batch {i}, x shape: {x.shape}, y shape: {y.shape}")
+    #print(f"Batch {i}, x shape: {x.shape}, y shape: {y.shape}")
     if i == 1:
         break
 
 for epoch in range(10):
-    print(f"[Rank {local_rank}] Starting epoch {epoch}")
+    #print(f"[Rank {local_rank}] Starting epoch {epoch}")
 
     model.train()
     train_sampler.set_epoch(epoch)
-    print(f"[Rank {local_rank}] Beginning epoch {epoch} with {len(train_loader)} batches")
+    #print(f"[Rank {local_rank}] Beginning epoch {epoch} with {len(train_loader)} batches")
 
     total_loss = 0.0
     
     for batch_idx, (data_train, labels_train) in enumerate(train_loader):
-        print(f"[Rank {local_rank}] Epoch {epoch} - Batch {batch_idx}")
+        #print(f"[Rank {local_rank}] Epoch {epoch} - Batch {batch_idx}")
         try:
             data_train = data_train.to(device)
             labels_train = labels_train.to(device)
 
             optimizer.zero_grad()
             logits = model(data_train)
-            print(f"logits shape: {logits.shape}, labels shape: {labels_train.shape}")
+            #print(f"logits shape: {logits.shape}, labels shape: {labels_train.shape}")
             loss = criterion(logits, labels_train)
-            print(f"loss: {loss.item()}")
+            #print(f"loss: {loss.item()}")
             loss.backward()
-            print("backward done")
+            #print("backward done")
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
             total_loss += loss.item()
         except Exception as e:
-            print(f"[Rank {local_rank}] Exception at batch {batch_idx}: {e}")
+            #print(f"[Rank {local_rank}] Exception at batch {batch_idx}: {e}")
             raise
 
     
@@ -194,7 +188,7 @@ if is_master:
             all_preds.append(preds.cpu())
             all_labels.append(labels_val.cpu())
 
-    print(f"Logits shape: {logits.shape}")
+    #print(f"Logits shape: {logits.shape}")
 
     all_preds = torch.cat(all_preds).numpy()
     all_labels = torch.cat(all_labels).numpy()
