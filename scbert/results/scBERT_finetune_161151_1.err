@@ -1,0 +1,69 @@
+The "poetry.dev-dependencies" section is deprecated and will be removed in a future version. Use "poetry.group.dev.dependencies" instead.
+/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/launch.py:207: FutureWarning: The module torch.distributed.launch is deprecated
+and will be removed in future. Use torchrun.
+Note that --use-env is set by default in torchrun.
+If your script expects `--local-rank` argument to be set, please
+change it to read from `os.environ['LOCAL_RANK']` instead. See 
+https://pytorch.org/docs/stable/distributed.html#launch-utility for 
+further instructions
+
+  main()
+/baie/data1/data/expes/amrithya.balaji/scRNAseq/scbert/performer_pytorch/performer_pytorch.py:115: UserWarning: torch.qr is deprecated in favor of torch.linalg.qr and will be removed in a future PyTorch release.
+The boolean parameter 'some' has been replaced with a string parameter 'mode'.
+Q, R = torch.qr(A, some)
+should be replaced with
+Q, R = torch.linalg.qr(A, 'reduced' if some else 'complete') (Triggered internally at /pytorch/aten/src/ATen/native/BatchLinearAlgebra.cpp:2487.)
+  q, r = torch.qr(unstructured_block.cpu(), some = True)
+[rank0]:[E521 11:55:52.400570512 ProcessGroupNCCL.cpp:1896] [PG ID 0 PG GUID 0(default_pg) Rank 0] Process group watchdog thread terminated with exception: CUDA error: an illegal memory access was encountered
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1
+Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+
+Exception raised from c10_cuda_check_implementation at /pytorch/c10/cuda/CUDAException.cpp:43 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x98 (0x7f374b7f55e8 in /public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/lib/libc10.so)
+frame #1: c10::detail::torchCheckFail(char const*, char const*, unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) + 0xe0 (0x7f374b78a4a2 in /public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/lib/libc10.so)
+frame #2: c10::cuda::c10_cuda_check_implementation(int, char const*, char const*, int, bool) + 0x3c2 (0x7f374b8d3422 in /public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/lib/libc10_cuda.so)
+frame #3: c10d::ProcessGroupNCCL::WorkNCCL::finishedGPUExecutionInternal() const + 0x56 (0x7f374cb00476 in /public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/lib/libtorch_cuda.so)
+frame #4: c10d::ProcessGroupNCCL::WorkNCCL::isCompleted() + 0x70 (0x7f374cb10710 in /public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/lib/libtorch_cuda.so)
+frame #5: c10d::ProcessGroupNCCL::watchdogHandler() + 0x782 (0x7f374cb122a2 in /public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/lib/libtorch_cuda.so)
+frame #6: c10d::ProcessGroupNCCL::ncclCommWatchdog() + 0x14d (0x7f374cb13ead in /public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/lib/libtorch_cuda.so)
+frame #7: <unknown function> + 0xdbbf4 (0x7f37ba172bf4 in /public/conda/user_envs/amrithya.balaji/envs/arb/bin/../lib/libstdc++.so.6)
+frame #8: <unknown function> + 0x89c02 (0x7f37bc489c02 in /lib64/libc.so.6)
+frame #9: <unknown function> + 0x10ec40 (0x7f37bc50ec40 in /lib64/libc.so.6)
+
+E0521 11:55:59.289000 603541 site-packages/torch/distributed/elastic/multiprocessing/api.py:874] failed (exitcode: -6) local_rank: 0 (pid: 603555) of binary: /public/conda/user_envs/amrithya.balaji/envs/arb/bin/python
+Traceback (most recent call last):
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/launch.py", line 207, in <module>
+    main()
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/typing_extensions.py", line 3253, in wrapper
+    return arg(*args, **kwargs)
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/launch.py", line 203, in main
+    launch(args)
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/launch.py", line 188, in launch
+    run(args)
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/run.py", line 883, in run
+    elastic_launch(
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/launcher/api.py", line 139, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/launcher/api.py", line 270, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+=======================================================
+finetune.py FAILED
+-------------------------------------------------------
+Failures:
+  <NO_OTHER_FAILURES>
+-------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2025-05-21_11:55:59
+  host      : lisnode3.localdomain
+  rank      : 0 (local_rank: 0)
+  exitcode  : -6 (pid: 603555)
+  error_file: <N/A>
+  traceback : Signal 6 (SIGABRT) received by PID 603555
+=======================================================
