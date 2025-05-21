@@ -146,7 +146,7 @@ for i, (x, y) in enumerate(train_loader):
     if i == 1:
         break
 
-for epoch in range(args.epoch):
+for epoch in range(10):
     print(f"[Rank {local_rank}] Starting epoch {epoch}")
 
     model.train()
@@ -166,7 +166,7 @@ for epoch in range(args.epoch):
         total_loss += loss.item()
     
     if is_master:
-        print(f"Epoch {epoch+1}/{args.epoch}, Loss: {total_loss / len(train_loader):.4f}")
+        print(f"Epoch {epoch+1}/10, Loss: {total_loss / len(train_loader):.4f}")
 
 if is_master:
     model.eval()
