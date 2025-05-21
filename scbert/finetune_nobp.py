@@ -1,10 +1,9 @@
-# -*- coding: utf-8 -*-
 import os
 import argparse
 import numpy as np
-import pandas as pd
 import pickle as pkl
 import torch
+import pandas as pd
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.distributed import DistributedSampler
@@ -13,12 +12,11 @@ import torch.distributed as dist
 from performer_pytorch import PerformerLM
 import scanpy as sc
 from sklearn.model_selection import StratifiedShuffleSplit
-from sklearn.metrics import confusion_matrix
-import random
 from sklearn.metrics import confusion_matrix, accuracy_score, f1_score
+import random
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--local_rank","--local-rank", type=int, default=-1)
+parser.add_argument("--local_rank", "--local-rank", type=int, default=-1)
 parser.add_argument("--bin_num", type=int, default=5)
 parser.add_argument("--gene_num", type=int, default=16906)
 parser.add_argument("--epoch", type=int, default=100)
@@ -29,8 +27,8 @@ parser.add_argument("--data_path", type=str, default='./data/Zheng68K.h5ad')
 parser.add_argument("--model_path", type=str, default='./panglao_pretrained.pth')
 parser.add_argument("--ckpt_dir", type=str, default='./ckpts/')
 parser.add_argument("--model_name", type=str, default='finetune_ready')
-
 args = parser.parse_args()
+
 local_rank = args.local_rank
 is_master = local_rank == 0
 
@@ -47,11 +45,11 @@ class SCDataset(Dataset):
         self.label = label
 
     def __getitem__(self, index):
-        rand_start = random.randint(0, self.data.shape[0]-1)
+        rand_start = random.randint(0, self.data.shape[0] - 1)
         full_seq = self.data[rand_start].toarray()[0]
         full_seq[full_seq > (CLASS - 2)] = CLASS - 2
         full_seq = torch.from_numpy(full_seq).long()
-        full_seq = torch.cat((full_seq, torch.tensor([0]))).to(device)
+        full_seq = torch.cat((full_seq, torch.tensor([0])))
         return full_seq, self.label[rand_start]
 
     def __len__(self):
@@ -74,10 +72,10 @@ class Identity(nn.Module):
     def forward(self, x):
         if not self._printed:
             print(f"Shape after Performer, before Identity: {x.shape}")
-        x = x[:,None,:,:]
+        x = x[:, None, :, :]
         x = self.conv1(x)
         x = self.act(x)
-        x = x.view(x.shape[0],-1)
+        x = x.view(x.shape[0], -1)
         x = self.fc1(x)
         x = self.act1(x)
         x = self.dropout1(x)
@@ -118,43 +116,39 @@ model = PerformerLM(
 ckpt = torch.load(args.model_path)
 model.load_state_dict(ckpt['model_state_dict'])
 
-
 model.to_out = Identity(dropout=0., h_dim=128, out_dim=len(label_dict))
 model = model.to(device)
 model = DDP(model, device_ids=[local_rank])
 
-model.eval()
-val_loader = DataLoader(val_dataset, batch_size=args.batch_size, sampler=DistributedSampler(val_dataset))
+val_sampler = DistributedSampler(val_dataset)
+val_loader = DataLoader(val_dataset, batch_size=args.batch_size, sampler=val_sampler, num_workers=4, pin_memory=True)
 
 all_preds = []
 all_labels = []
 
 model.eval()
 with torch.no_grad():
-    for batch in val_loader:
-        data_val, labels_val = batch
+    for data_val, labels_val in val_loader:
+        data_val = data_val.to(device)
+        labels_val = labels_val.to(device)
         logits = model(data_val)
         preds = logits.argmax(dim=-1)
-
         all_preds.append(preds.cpu())
         all_labels.append(labels_val.cpu())
-print(f"Logits shape: {logits.shape}") 
 
+print(f"Logits shape: {logits.shape}")
 
 if is_master:
     all_preds = torch.cat(all_preds).numpy()
     all_labels = torch.cat(all_labels).numpy()
-
     acc = accuracy_score(all_labels, all_preds)
     f1 = f1_score(all_labels, all_preds, average='weighted')
-    
     print("\nValidation Results on Full Dataset:")
     print(f"Accuracy: {acc:.4f}")
     print(f"F1 Score (weighted): {f1:.4f}")
     print("Confusion matrix:")
     print(confusion_matrix(all_labels, all_preds))
-    
-if is_master:
+
     os.makedirs(args.ckpt_dir, exist_ok=True)
     save_path = os.path.join(args.ckpt_dir, f"{args.model_name}.pth")
     torch.save({
