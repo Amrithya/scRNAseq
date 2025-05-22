@@ -121,13 +121,12 @@ model = PerformerLM(
 ckpt = torch.load(args.model_path, map_location='cpu')
 model.load_state_dict(ckpt['model_state_dict'])
 
+model.to_out = Identity(dropout=0., h_dim=128, out_dim=len(label_dict))
+model.add_module("to_out", model.to_out)  
 for param in model.parameters():
     param.requires_grad = False
 
-model.to_out = Identity(dropout=0., h_dim=128, out_dim=len(label_dict))
 for param in model.to_out.parameters():
-    param.requires_grad = False
-for param in model.norm.parameters():
     param.requires_grad = False
 model = model.to(device)
 model = DDP(model, device_ids=[local_rank])
