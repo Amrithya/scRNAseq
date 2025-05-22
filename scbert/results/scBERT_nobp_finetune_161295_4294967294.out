@@ -1,0 +1,3 @@
+Trainable parameters: 8724180
+Shape after Performer, before Identity: torch.Size([3, 16907, 200])
+Shape after Identity: torch.Size([3, 11])
