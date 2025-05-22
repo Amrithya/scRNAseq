@@ -127,7 +127,7 @@ for param in model.parameters():
     param.requires_grad = False
 
 for param in model.to_out.parameters():
-    param.requires_grad = False
+    param.requires_grad = True
 model = model.to(device)
 model = DDP(model, device_ids=[local_rank])
 
