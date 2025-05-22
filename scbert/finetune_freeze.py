@@ -143,8 +143,11 @@ train_loader = DataLoader(train_dataset, batch_size=args.batch_size,
                          sampler=train_sampler,num_workers=0, pin_memory=True)
 
 val_sampler = DistributedSampler(val_dataset)
-val_loader = DataLoader(val_dataset, batch_size=args.batch_size, 
-                       sampler=val_sampler,num_workers=0, pin_memory=True)
+if is_master:
+    val_loader = DataLoader(val_dataset, batch_size=args.batch_size, num_workers=0, pin_memory=True)
+else:
+    val_loader = None
+
 
 for i, (x, y) in enumerate(train_loader):
     #print(f"Batch {i}, x shape: {x.shape}, y shape: {y.shape}")
@@ -167,28 +170,31 @@ for epoch in range(10):
             labels_train = labels_train.to(device)
 
             optimizer.zero_grad()
+            torch.cuda.synchronize()
+
             logits = model(data_train)
             #print(f"logits shape: {logits.shape}, labels shape: {labels_train.shape}")
             loss = criterion(logits, labels_train)
+            torch.cuda.synchronize()
             #print(f"loss: {loss.item()}")
             loss.backward()
+            torch.cuda.synchronize()
             #print("backward done")
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
+            torch.cuda.synchronize()
             total_loss += loss.item()
         except Exception as e:
             #print(f"[Rank {local_rank}] Exception at batch {batch_idx}: {e}")
             raise
-
-    
     if is_master:
-        print(f"Epoch {epoch+1}/10, Loss: {total_loss / len(train_loader):.4f}")
+        print(f"Epoch {epoch+1}/10, Loss: {total_loss / len(train_loader):.4f}",flush=True)
 
-if is_master:
+if is_master and val_loader is not None:
     model.eval()
     all_preds = []
     all_labels = []
-    
+    print("Starting validation...")
     with torch.no_grad():
         for data_val, labels_val in val_loader:
             data_val = data_val.to(device)
@@ -197,7 +203,6 @@ if is_master:
             preds = logits.argmax(dim=-1)
             all_preds.append(preds.cpu())
             all_labels.append(labels_val.cpu())
-
     #print(f"Logits shape: {logits.shape}")
 
     all_preds = torch.cat(all_preds).numpy()
