@@ -95,7 +95,7 @@ def save_simple_ckpt(model, model_name, ckpt_folder):
         f'{ckpt_folder}{model_name}.pth'
     )
 
-def save_best_ckpt(epoch, model, optimizer, scheduler, losses, model_name, ckpt_folder):
+def save_best_ckpt(epoch, model, optimizer, losses, model_name, ckpt_folder):
     """
     save checkpoint
     """
@@ -106,7 +106,7 @@ def save_best_ckpt(epoch, model, optimizer, scheduler, losses, model_name, ckpt_
             'epoch': epoch,
             'model_state_dict': model.module.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
-            'scheduler_state_dict': scheduler.state_dict(),
+            #'scheduler_state_dict': scheduler.state_dict(),
             'losses': losses,
         },
         f'{ckpt_folder}{model_name}_best.pth'
