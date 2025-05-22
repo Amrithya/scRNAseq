@@ -1,31 +1,26 @@
 #!/bin/bash
 
-#SBATCH --job-name=mrh
+#SBATCH --job-name="scBERT_nobp_finetune"          # Job Name
 
-#SBATCH --partition=gpu_p2
-
-#SBATCH --qos=qos_gpu-t4
-
-#SBATCH --nodes=1
-
-#SBATCH --ntasks-per-node=1
+#SBATCH --partition=gpu                     # Partition name
 
 #SBATCH --gres=gpu:1
+
+#SBATCH --ntasks-per-node=1
 
 #SBATCH --cpus-per-task=3
 
 #SBATCH --hint=nomultithread
 
-#SBATCH --time=100:00:00
+#SBATCH --time=08:00:00                     # Max runtime (HH:MM:SS)
 
-#SBATCH --output=/gpfswork/rech/qcr/usi11oa/jobs_scLight/%j/out.txt
+#SBATCH --output=results/scBERT_freeze_%A_%a.out    # STDOUT file
 
-#SBATCH --error=/gpfswork/rech/qcr/usi11oa/jobs_scLight/%j/out.txt
+#SBATCH --error=results/scBERT_freeze_%A_%a.err     # STDERR file
 
-poetry run python -u -m torch.distributed.launch finetune.py --data_path "/data1/data/corpus/Zheng68K.h5ad" --model_path "/data1/data/corpus/panglao_pretrain.pth"
+CUDA_LAUNCH_BLOCKING=1 poetry run python -m torch.distributed.launch  finetune_freeze.py \
+          --data_path "/data1/data/corpus/Zheng68K.h5ad" \
+            --model_path "/data1/data/corpus/panglao_pretrain.pth"
 
-file_path="/gpfswork/rech/qcr/usi11oa/jobs_scLight/${SLURM_JOB_ID}/out.txt"
-folder=$(tail -n 1 "$file_path")
-echo $folder
-
-#mv "./folder""folder""{WORK}/jobs_scLight/${SLURM_JOB_ID}"
+echo "All Done!"
+wait
