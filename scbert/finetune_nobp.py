@@ -125,7 +125,8 @@ for param in model.parameters():
     param.requires_grad = False
 
 model.to_out = Identity(dropout=0., h_dim=128, out_dim=len(label_dict))
-model.to_out.requires_grad_(True)
+for param in model.to_out.parameters():
+    param.requires_grad = True
 model = model.to(device)
 model = DDP(model, device_ids=[local_rank])
 
