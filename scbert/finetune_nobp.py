@@ -9,36 +9,54 @@ from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
 from performer_pytorch import PerformerLM
+from utils import *
 import scanpy as sc
 from sklearn.model_selection import StratifiedShuffleSplit
-from sklearn.metrics import confusion_matrix, accuracy_score, f1_score
+from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, precision_recall_fscore_support, classification_report
 import random
 
 # Set up argument parser
 parser = argparse.ArgumentParser()
-parser.add_argument("--local_rank", "--local-rank", type=int, default=-1)
-parser.add_argument("--bin_num", type=int, default=5)
-parser.add_argument("--gene_num", type=int, default=16906)
-parser.add_argument("--epoch", type=int, default=100)
-parser.add_argument("--seed", type=int, default=2021)
-parser.add_argument("--batch_size", type=int, default=3)
-parser.add_argument("--pos_embed", type=bool, default=True)
-parser.add_argument("--data_path", type=str, default='./data/Zheng68K.h5ad')
-parser.add_argument("--model_path", type=str, default='./panglao_pretrained.pth')
-parser.add_argument("--ckpt_dir", type=str, default='./ckpts/')
-parser.add_argument("--model_name", type=str, default='finetune_ready')
+parser.add_argument("--local_rank","--local-rank", type=int, default=-1, help='Local process rank.')
+parser.add_argument("--bin_num", type=int, default=5, help='Number of bins.')
+parser.add_argument("--gene_num", type=int, default=16906, help='Number of genes.')
+parser.add_argument("--epoch", type=int, default=100, help='Number of epochs.')
+parser.add_argument("--seed", type=int, default=2021, help='Random seed.')
+parser.add_argument("--batch_size", type=int, default=3, help='Number of batch size.')
+parser.add_argument("--learning_rate", type=float, default=1e-4, help='Learning rate.')
+parser.add_argument("--grad_acc", type=int, default=60, help='Number of gradient accumulation.')
+parser.add_argument("--valid_every", type=int, default=1, help='Number of training epochs between twice validation.')
+parser.add_argument("--pos_embed", type=bool, default=True, help='Using Gene2vec encoding or not.')
+parser.add_argument("--data_path", type=str, default='./data/Zheng68K.h5ad', help='Path of data for finetune.')
+parser.add_argument("--model_path", type=str, default='./panglao_pretrained.pth', help='Path of pretrained model.')
+parser.add_argument("--ckpt_dir", type=str, default='./ckpts/', help='Directory of checkpoint to save.')
+parser.add_argument("--model_name", type=str, default='finetune', help='Finetuned model name.')
 args = parser.parse_args()
 
 random.seed(args.seed)
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
 torch.cuda.manual_seed_all(args.seed)
+SEED = args.seed
+EPOCHS = args.epoch
+BATCH_SIZE = args.batch_size
+GRADIENT_ACCUMULATION = args.grad_acc
+LEARNING_RATE = args.learning_rate
+SEQ_LEN = args.gene_num + 1
+VALIDATE_EVERY = args.valid_every
+UNASSIGN_THRES = 0.0
+PATIENCE = 10
+
+model_name = args.model_name
+ckpt_dir = args.ckpt_dir
 
 local_rank = args.local_rank
 is_master = local_rank == 0
 dist.init_process_group(backend='nccl')
 torch.cuda.set_device(local_rank)
 device = torch.device("cuda", local_rank)
+world_size = torch.distributed.get_world_size()
+
 
 CLASS = args.bin_num + 2
 SEQ_LEN = args.gene_num + 1
@@ -125,6 +143,8 @@ for param in model.parameters():
     param.requires_grad = False
 
 model.to_out = Identity(dropout=0., h_dim=128, out_dim=len(label_dict))
+model.add_module("to_out", model.to_out)  
+
 for param in model.to_out.parameters():
     param.requires_grad = True
 model = model.to(device)
@@ -133,7 +153,7 @@ model = DDP(model, device_ids=[local_rank])
 trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 print(f"Trainable parameters: {trainable_params}")
 
-criterion = nn.CrossEntropyLoss()
+criterion = nn.CrossEntropyLoss(weight=None).to(local_rank)
 optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=1e-4)
 
 train_sampler = DistributedSampler(train_dataset)
@@ -147,82 +167,85 @@ if is_master:
 else:
     val_loader = None
 
-
-for i, (x, y) in enumerate(train_loader):
-    #print(f"Batch {i}, x shape: {x.shape}, y shape: {y.shape}")
-    if i == 1:
-        break
-
-for epoch in range(10):
-    #print(f"[Rank {local_rank}] Starting epoch {epoch}")
-
-    model.train()
-    train_sampler.set_epoch(epoch)
-    #print(f"[Rank {local_rank}] Beginning epoch {epoch} with {len(train_loader)} batches")
-
-    total_loss = 0.0
-    
-    for batch_idx, (data_train, labels_train) in enumerate(train_loader):
-        #print(f"[Rank {local_rank}] Epoch {epoch} - Batch {batch_idx}")
-        try:
-            data_train = data_train.to(device)
-            labels_train = labels_train.to(device)
-
-            optimizer.zero_grad()
-            torch.cuda.synchronize()
-
-            logits = model(data_train)
-            #print(f"logits shape: {logits.shape}, labels shape: {labels_train.shape}")
-            loss = criterion(logits, labels_train)
-            torch.cuda.synchronize()
-            #print(f"loss: {loss.item()}")
-            loss.backward()
-            torch.cuda.synchronize()
-            #print("backward done")
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-            optimizer.step()
-            torch.cuda.synchronize()
-            total_loss += loss.item()
-        except Exception as e:
-            #print(f"[Rank {local_rank}] Exception at batch {batch_idx}: {e}")
-            raise
-    if is_master:
-        print(f"Epoch {epoch+1}/10, Loss: {total_loss / len(train_loader):.4f}",flush=True)
-
-if is_master and val_loader is not None:
-    model.eval()
-    all_preds = []
-    all_labels = []
-    print("Starting validation...")
-    with torch.no_grad():
-        for data_val, labels_val in val_loader:
-            data_val = data_val.to(device)
-            labels_val = labels_val.to(device)
-            logits = model(data_val)
-            preds = logits.argmax(dim=-1)
-            all_preds.append(preds.cpu())
-            all_labels.append(labels_val.cpu())
-
-    #print(f"Logits shape: {logits.shape}")
-
-    all_preds = torch.cat(all_preds).numpy()
-    all_labels = torch.cat(all_labels).numpy()
-    acc = accuracy_score(all_labels, all_preds)
-    f1 = f1_score(all_labels, all_preds, average='weighted')
-    
-    print("\nValidation Results on Full Dataset:")
-    print(f"Accuracy: {acc:.4f}")
-    print(f"F1 Score (weighted): {f1:.4f}")
-    print("Confusion matrix:")
-    print(confusion_matrix(all_labels, all_preds))
-
-    save_path = os.path.join(args.ckpt_dir, f"{args.model_name}.pth")
-    torch.save({
-        'model_state_dict': model.module.state_dict(),
-        'label_dict': label_dict,
-        'args': vars(args)
-    }, save_path)
-    print(f"\nModel successfully saved to {save_path}")
-
 dist.barrier()
-dist.destroy_process_group()
+trigger_times = 0
+max_acc = 0.0
+for i in range(1, EPOCHS+1):
+    train_loader.sampler.set_epoch(i)
+    model.train()
+    dist.barrier()
+    running_loss = 0.0
+    cum_acc = 0.0
+    for index, (data, labels) in enumerate(train_loader):
+        index += 1
+        data, labels = data.to(device), labels.to(device)
+        if index % GRADIENT_ACCUMULATION != 0:
+            with model.no_sync():
+                logits = model(data)
+                loss = criterion(logits, labels)
+                loss.backward()
+        if index % GRADIENT_ACCUMULATION == 0:
+            logits = model(data)
+            loss = criterion(logits, labels)
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), int(1e6))
+            optimizer.step()
+            optimizer.zero_grad()
+        running_loss += loss.item()
+        softmax = nn.Softmax(dim=-1)
+        final = softmax(logits)
+        final = final.argmax(dim=-1)
+        pred_num = labels.size(0)
+        correct_num = torch.eq(final, labels).sum(dim=-1)
+        cum_acc += torch.true_divide(correct_num, pred_num).mean().item()
+    epoch_loss = running_loss / index
+    epoch_acc = 100 * cum_acc / index
+    epoch_loss = get_reduced(epoch_loss, local_rank, 0, world_size)
+    epoch_acc = get_reduced(epoch_acc, local_rank, 0, world_size)
+    if is_master:
+        print(f'    ==  Epoch: {i} | Training Loss: {epoch_loss:.6f} | Accuracy: {epoch_acc:6.4f}%  ==')
+    dist.barrier()
+
+    if i % VALIDATE_EVERY == 0:
+        model.eval()
+        dist.barrier()
+        running_loss = 0.0
+        predictions = []
+        truths = []
+        with torch.no_grad():
+            for index, (data_v, labels_v) in enumerate(val_loader):
+                index += 1
+                data_v, labels_v = data_v.to(device), labels_v.to(device)
+                logits = model(data_v)
+                loss = criterion(logits, labels_v)
+                running_loss += loss.item()
+                softmax = nn.Softmax(dim=-1)
+                final_prob = softmax(logits)
+                final = final_prob.argmax(dim=-1)
+                final[np.amax(np.array(final_prob.cpu()), axis=-1) < UNASSIGN_THRES] = -1
+                predictions.append(final)
+                truths.append(labels_v)
+            del data_v, labels_v, logits, final_prob, final
+            # gather
+            predictions = distributed_concat(torch.cat(predictions, dim=0), len(val_sampler.dataset), world_size)
+            truths = distributed_concat(torch.cat(truths, dim=0), len(val_sampler.dataset), world_size)
+            no_drop = predictions != -1
+            predictions = np.array((predictions[no_drop]).cpu())
+            truths = np.array((truths[no_drop]).cpu())
+            cur_acc = accuracy_score(truths, predictions)
+            f1 = f1_score(truths, predictions, average='macro')
+            val_loss = running_loss / index
+            val_loss = get_reduced(val_loss, local_rank, 0, world_size)
+            if is_master:
+                print(f'    ==  Epoch: {i} | Validation Loss: {val_loss:.6f} | F1 Score: {f1:.6f}  ==')
+                print(confusion_matrix(truths, predictions))
+                print(classification_report(truths, predictions, target_names=label_dict.tolist(), digits=4))
+            if cur_acc > max_acc:
+                max_acc = cur_acc
+                trigger_times = 0
+                save_best_ckpt(i, model, optimizer, val_loss, model_name, ckpt_dir)
+            else:
+                trigger_times += 1
+                if trigger_times > PATIENCE:
+                    break
+    del predictions, truths
