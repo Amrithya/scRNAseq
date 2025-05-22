@@ -28,20 +28,28 @@ parser.add_argument("--ckpt_dir", type=str, default='./ckpts/')
 parser.add_argument("--model_name", type=str, default='finetune_ready')
 args = parser.parse_args()
 
+print(f"Arguments: {args}")
 
 random.seed(args.seed)
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
 torch.cuda.manual_seed_all(args.seed)
+print(f"Random seeds set to {args.seed}")
 
 local_rank = args.local_rank
 is_master = local_rank == 0
+print(f"Local rank: {local_rank}, is_master: {is_master}")
+
 dist.init_process_group(backend='nccl')
+print("Initialized distributed process group with NCCL backend")
+
 torch.cuda.set_device(local_rank)
 device = torch.device("cuda", local_rank)
+print(f"Using device: {device}")
 
 CLASS = args.bin_num + 2
 SEQ_LEN = args.gene_num + 1
+print(f"CLASS: {CLASS}, SEQ_LEN: {SEQ_LEN}")
 
 class SCDataset(Dataset):
     def __init__(self, data, label):
@@ -91,24 +99,33 @@ class Identity(nn.Module):
             self._printed = True
         return x
 
+print("Loading dataset from:", args.data_path)
 data = sc.read_h5ad(args.data_path)
+print(f"Dataset loaded: {data}")
+
 label_dict, label = np.unique(data.obs['celltype'], return_inverse=True)
+print(f"Unique cell types found: {len(label_dict)}")
 label = torch.from_numpy(label)
 data = data.X
 
 os.makedirs(args.ckpt_dir, exist_ok=True)
 with open(os.path.join(args.ckpt_dir, 'label_dict.pkl'), 'wb') as f:
     pkl.dump(label_dict, f)
+print(f"Saved label_dict.pkl to {args.ckpt_dir}")
+
 with open(os.path.join(args.ckpt_dir, 'label.pkl'), 'wb') as f:
     pkl.dump(label, f)
+print(f"Saved label.pkl to {args.ckpt_dir}")
 
 sss = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=args.seed)
 for train_idx, val_idx in sss.split(data, label):
+    print(f"Train/val split: {len(train_idx)} train, {len(val_idx)} val")
     train_dataset = SCDataset(data[train_idx], label[train_idx])
     val_dataset = SCDataset(data[val_idx], label[val_idx])
 
 train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=0, pin_memory=True)
 val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=0, pin_memory=True)
+print(f"Created DataLoaders with batch size {args.batch_size}")
 
 model = PerformerLM(
     num_tokens=CLASS,
@@ -118,18 +135,23 @@ model = PerformerLM(
     heads=10,
     g2v_position_emb=args.pos_embed
 )
+print("PerformerLM model instantiated")
 
 ckpt = torch.load(args.model_path, map_location='cpu')
+print(f"Loaded checkpoint from {args.model_path}")
 model.load_state_dict(ckpt['model_state_dict'])
+print("Loaded model state dict")
 
 model.to_out = Identity(dropout=0., h_dim=128, out_dim=len(label_dict))
 model.add_module("to_out", model.to_out)
 
 for param in model.parameters():
     param.requires_grad = False
+print("Set all model parameters to requires_grad=False")
 
 model.to(device)
 model.eval()
+print("Model moved to device and set to eval mode")
 
 criterion = nn.CrossEntropyLoss()
 
@@ -137,12 +159,15 @@ all_preds = []
 all_labels = []
 
 with torch.no_grad():
-    for x_val, y_val in val_loader:
+    print("Starting validation loop...")
+    for batch_idx, (x_val, y_val) in enumerate(val_loader):
         x_val, y_val = x_val.to(device), y_val.to(device)
+        print(f"Batch {batch_idx} - x_val shape: {x_val.shape}, y_val shape: {y_val.shape}")
         logits = model(x_val)
         preds = logits.argmax(dim=1)
         all_preds.append(preds.cpu())
         all_labels.append(y_val.cpu())
+    print("Validation loop completed")
 
 all_preds = torch.cat(all_preds).numpy()
 all_labels = torch.cat(all_labels).numpy()
