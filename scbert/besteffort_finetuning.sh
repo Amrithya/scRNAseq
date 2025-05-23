@@ -20,7 +20,7 @@
 
 #SBATCH --requeue                                 
 
-CUDA_LAUNCH_BLOCKING=1 poetry run python -m torch.distributed.launch --nproc_per_node=4 besteffort_finetuning.py \
+CUDA_LAUNCH_BLOCKING=1 poetry run python -u -m torch.distributed.launch --nproc_per_node=4 besteffort_finetuning.py \
           --data_path "/data1/data/corpus/Zheng68K.h5ad" \
           --model_path "/data1/data/corpus/panglao_pretrain.pth"
 
