@@ -1,0 +1,25 @@
+[Init] Seed: 2021, Epochs: 5, Batch size: 10, LR: 0.0001
+[Init] Using 2 GPUs, local_rank: 0
+[Init] Seed: 2021, Epochs: 5, Batch size: 10, LR: 0.0001
+[Init] Using 2 GPUs, local_rank: 1
+[Data] Loaded data shape: (68450, 16906), Labels: 11
+[Split] Train: 54760, Validation: 13690
+[Model] Loaded pretrained weights. Trainable params: 186189
+[Training] Starting training...
+Shape after Performer, before Identity: torch.Size([10, 16907, 200])
+Shape after Performer, before Identity: torch.Size([10, 16907, 200])
+Shape after Identity: torch.Size([10, 11])
+Shape after Identity: torch.Size([10, 11])
+[Epoch 1] Batch 300 step done, loss: 2.152671
+[Epoch 1] Batch 600 step done, loss: 2.186909
+[Epoch 1] Batch 900 step done, loss: 2.252572
+[Epoch 1] Batch 1200 step done, loss: 2.016938
+[Epoch 1] Batch 1500 step done, loss: 2.520361
+[Epoch 1] Batch 1800 step done, loss: 2.598905
+[Epoch 1] Batch 2100 step done, loss: 2.104398
+[Dataset] idx 0, sequence sample (first 10): tensor([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), label: 1
+[Epoch 1] Batch 2400 step done, loss: 2.025214
+[Epoch 1] Batch 2700 step done, loss: 2.090592
+[Epoch 1] Train Loss: 2.274013 | Train Accuracy: 24.07%
+[Dataset] idx 0, sequence sample (first 10): tensor([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), label: 1
+[Dataset] idx 2, sequence sample (first 10): tensor([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), label: 8

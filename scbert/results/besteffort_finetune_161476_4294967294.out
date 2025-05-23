@@ -1,0 +1,11 @@
+[Rank 0] Local Rank: 0, Using Device: 0
+[Rank 0] CUDA_VISIBLE_DEVICES=0,1,2,3
+[Rank 1] Local Rank: 1, Using Device: 1
+[Rank 1] CUDA_VISIBLE_DEVICES=0,1,2,3
+[Rank 2] Local Rank: 2, Using Device: 2
+[Rank 2] CUDA_VISIBLE_DEVICES=0,1,2,3
+[Rank 3] Local Rank: 3, Using Device: 3
+[Rank 3] CUDA_VISIBLE_DEVICES=0,1,2,3
+[Data] Loaded data shape: (68450, 16906), Labels: 11
+[Split] Train: 54760, Validation: 13690
+All Done!

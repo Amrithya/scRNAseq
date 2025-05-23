@@ -1,0 +1,96 @@
+The "poetry.dev-dependencies" section is deprecated and will be removed in a future version. Use "poetry.group.dev.dependencies" instead.
+/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/launch.py:207: FutureWarning: The module torch.distributed.launch is deprecated
+and will be removed in future. Use torchrun.
+Note that --use-env is set by default in torchrun.
+If your script expects `--local-rank` argument to be set, please
+change it to read from `os.environ['LOCAL_RANK']` instead. See 
+https://pytorch.org/docs/stable/distributed.html#launch-utility for 
+further instructions
+
+  main()
+W0523 14:32:19.874000 1455250 site-packages/torch/distributed/run.py:766] 
+W0523 14:32:19.874000 1455250 site-packages/torch/distributed/run.py:766] *****************************************
+W0523 14:32:19.874000 1455250 site-packages/torch/distributed/run.py:766] Setting OMP_NUM_THREADS environment variable for each process to be 1 in default, to avoid your system being overloaded, please further tune the variable for optimal performance in your application as needed. 
+W0523 14:32:19.874000 1455250 site-packages/torch/distributed/run.py:766] *****************************************
+Traceback (most recent call last):
+  File "/baie/data1/data/expes/amrithya.balaji/scRNAseq/scbert/besteffort_finetuning.py", line 56, in <module>
+    print(f"[Rank {dist.get_rank()}] Local Rank: {local_rank}, Using Device: {torch.cuda.current_device()}")
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/distributed_c10d.py", line 2291, in get_rank
+    default_pg = _get_default_group()
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/distributed_c10d.py", line 1298, in _get_default_group
+    raise ValueError(
+ValueError: Default process group has not been initialized, please make sure to call init_process_group.
+Traceback (most recent call last):
+  File "/baie/data1/data/expes/amrithya.balaji/scRNAseq/scbert/besteffort_finetuning.py", line 56, in <module>
+    print(f"[Rank {dist.get_rank()}] Local Rank: {local_rank}, Using Device: {torch.cuda.current_device()}")
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/distributed_c10d.py", line 2291, in get_rank
+    default_pg = _get_default_group()
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/distributed_c10d.py", line 1298, in _get_default_group
+    raise ValueError(
+ValueError: Default process group has not been initialized, please make sure to call init_process_group.
+Traceback (most recent call last):
+  File "/baie/data1/data/expes/amrithya.balaji/scRNAseq/scbert/besteffort_finetuning.py", line 56, in <module>
+    print(f"[Rank {dist.get_rank()}] Local Rank: {local_rank}, Using Device: {torch.cuda.current_device()}")
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/distributed_c10d.py", line 2291, in get_rank
+    default_pg = _get_default_group()
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/distributed_c10d.py", line 1298, in _get_default_group
+    raise ValueError(
+ValueError: Default process group has not been initialized, please make sure to call init_process_group.
+Traceback (most recent call last):
+  File "/baie/data1/data/expes/amrithya.balaji/scRNAseq/scbert/besteffort_finetuning.py", line 56, in <module>
+    print(f"[Rank {dist.get_rank()}] Local Rank: {local_rank}, Using Device: {torch.cuda.current_device()}")
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/distributed_c10d.py", line 2291, in get_rank
+    default_pg = _get_default_group()
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/distributed_c10d.py", line 1298, in _get_default_group
+    raise ValueError(
+ValueError: Default process group has not been initialized, please make sure to call init_process_group.
+W0523 14:32:58.862000 1455250 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 1455298 closing signal SIGTERM
+E0523 14:32:58.870000 1455250 site-packages/torch/distributed/elastic/multiprocessing/api.py:874] failed (exitcode: 1) local_rank: 0 (pid: 1455296) of binary: /public/conda/user_envs/amrithya.balaji/envs/arb/bin/python
+Traceback (most recent call last):
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/launch.py", line 207, in <module>
+    main()
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/typing_extensions.py", line 3253, in wrapper
+    return arg(*args, **kwargs)
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/launch.py", line 203, in main
+    launch(args)
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/launch.py", line 188, in launch
+    run(args)
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/run.py", line 883, in run
+    elastic_launch(
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/launcher/api.py", line 139, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/launcher/api.py", line 270, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+besteffort_finetuning.py FAILED
+------------------------------------------------------------
+Failures:
+[1]:
+  time      : 2025-05-23_14:32:58
+  host      : mundus-mir-2.localdomain
+  rank      : 1 (local_rank: 1)
+  exitcode  : 1 (pid: 1455297)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+[2]:
+  time      : 2025-05-23_14:32:58
+  host      : mundus-mir-2.localdomain
+  rank      : 3 (local_rank: 3)
+  exitcode  : 1 (pid: 1455299)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2025-05-23_14:32:58
+  host      : mundus-mir-2.localdomain
+  rank      : 0 (local_rank: 0)
+  exitcode  : 1 (pid: 1455296)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================

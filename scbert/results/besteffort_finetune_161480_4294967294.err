@@ -1,0 +1,101 @@
+The "poetry.dev-dependencies" section is deprecated and will be removed in a future version. Use "poetry.group.dev.dependencies" instead.
+/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/launch.py:207: FutureWarning: The module torch.distributed.launch is deprecated
+and will be removed in future. Use torchrun.
+Note that --use-env is set by default in torchrun.
+If your script expects `--local-rank` argument to be set, please
+change it to read from `os.environ['LOCAL_RANK']` instead. See 
+https://pytorch.org/docs/stable/distributed.html#launch-utility for 
+further instructions
+
+  main()
+W0523 14:52:34.442000 1456167 site-packages/torch/distributed/run.py:766] 
+W0523 14:52:34.442000 1456167 site-packages/torch/distributed/run.py:766] *****************************************
+W0523 14:52:34.442000 1456167 site-packages/torch/distributed/run.py:766] Setting OMP_NUM_THREADS environment variable for each process to be 1 in default, to avoid your system being overloaded, please further tune the variable for optimal performance in your application as needed. 
+W0523 14:52:34.442000 1456167 site-packages/torch/distributed/run.py:766] *****************************************
+usage: besteffort_finetuning.py [-h] [--bin_num BIN_NUM] [--gene_num GENE_NUM]
+                                [--epoch EPOCH] [--seed SEED]
+                                [--batch_size BATCH_SIZE]
+                                [--learning_rate LEARNING_RATE]
+                                [--grad_acc GRAD_ACC]
+                                [--valid_every VALID_EVERY]
+                                [--pos_embed POS_EMBED]
+                                [--data_path DATA_PATH]
+                                [--model_path MODEL_PATH]
+                                [--ckpt_dir CKPT_DIR]
+                                [--model_name MODEL_NAME]
+usage: besteffort_finetuning.py [-h] [--bin_num BIN_NUM] [--gene_num GENE_NUM]
+                                [--epoch EPOCH] [--seed SEED]
+                                [--batch_size BATCH_SIZE]
+                                [--learning_rate LEARNING_RATE]
+                                [--grad_acc GRAD_ACC]
+                                [--valid_every VALID_EVERY]
+                                [--pos_embed POS_EMBED]
+                                [--data_path DATA_PATH]
+                                [--model_path MODEL_PATH]
+                                [--ckpt_dir CKPT_DIR]
+                                [--model_name MODEL_NAME]
+besteffort_finetuning.py: error: unrecognized arguments: --local-rank=2
+besteffort_finetuning.py: error: unrecognized arguments: --local-rank=1
+usage: besteffort_finetuning.py [-h] [--bin_num BIN_NUM] [--gene_num GENE_NUM]
+                                [--epoch EPOCH] [--seed SEED]
+                                [--batch_size BATCH_SIZE]
+                                [--learning_rate LEARNING_RATE]
+                                [--grad_acc GRAD_ACC]
+                                [--valid_every VALID_EVERY]
+                                [--pos_embed POS_EMBED]
+                                [--data_path DATA_PATH]
+                                [--model_path MODEL_PATH]
+                                [--ckpt_dir CKPT_DIR]
+                                [--model_name MODEL_NAME]
+besteffort_finetuning.py: error: unrecognized arguments: --local-rank=0
+usage: besteffort_finetuning.py [-h] [--bin_num BIN_NUM] [--gene_num GENE_NUM]
+                                [--epoch EPOCH] [--seed SEED]
+                                [--batch_size BATCH_SIZE]
+                                [--learning_rate LEARNING_RATE]
+                                [--grad_acc GRAD_ACC]
+                                [--valid_every VALID_EVERY]
+                                [--pos_embed POS_EMBED]
+                                [--data_path DATA_PATH]
+                                [--model_path MODEL_PATH]
+                                [--ckpt_dir CKPT_DIR]
+                                [--model_name MODEL_NAME]
+besteffort_finetuning.py: error: unrecognized arguments: --local-rank=3
+W0523 14:52:50.690000 1456167 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 1456200 closing signal SIGTERM
+W0523 14:52:50.691000 1456167 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 1456201 closing signal SIGTERM
+W0523 14:52:50.691000 1456167 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 1456202 closing signal SIGTERM
+E0523 14:52:50.730000 1456167 site-packages/torch/distributed/elastic/multiprocessing/api.py:874] failed (exitcode: 2) local_rank: 0 (pid: 1456199) of binary: /public/conda/user_envs/amrithya.balaji/envs/arb/bin/python
+Traceback (most recent call last):
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/launch.py", line 207, in <module>
+    main()
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/typing_extensions.py", line 3253, in wrapper
+    return arg(*args, **kwargs)
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/launch.py", line 203, in main
+    launch(args)
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/launch.py", line 188, in launch
+    run(args)
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/run.py", line 883, in run
+    elastic_launch(
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/launcher/api.py", line 139, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/launcher/api.py", line 270, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+besteffort_finetuning.py FAILED
+------------------------------------------------------------
+Failures:
+  <NO_OTHER_FAILURES>
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2025-05-23_14:52:50
+  host      : mundus-mir-2.localdomain
+  rank      : 0 (local_rank: 0)
+  exitcode  : 2 (pid: 1456199)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================

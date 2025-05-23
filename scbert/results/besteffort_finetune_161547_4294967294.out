@@ -1,0 +1,5 @@
+Hello from rank 0 on device 0
+Hello from rank 3 on device 3
+Hello from rank 2 on device 2
+Hello from rank 1 on device 1
+All Done!

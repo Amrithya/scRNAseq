@@ -1,0 +1,103 @@
+The "poetry.dev-dependencies" section is deprecated and will be removed in a future version. Use "poetry.group.dev.dependencies" instead.
+W0523 16:51:16.892000 1459780 site-packages/torch/distributed/run.py:766] 
+W0523 16:51:16.892000 1459780 site-packages/torch/distributed/run.py:766] *****************************************
+W0523 16:51:16.892000 1459780 site-packages/torch/distributed/run.py:766] Setting OMP_NUM_THREADS environment variable for each process to be 1 in default, to avoid your system being overloaded, please further tune the variable for optimal performance in your application as needed. 
+W0523 16:51:16.892000 1459780 site-packages/torch/distributed/run.py:766] *****************************************
+Traceback (most recent call last):
+Traceback (most recent call last):
+  File "/baie/data1/data/expes/amrithya.balaji/scRNAseq/scbert/testing.py", line 16, in <module>
+  File "/baie/data1/data/expes/amrithya.balaji/scRNAseq/scbert/testing.py", line 16, in <module>
+    main()
+  File "/baie/data1/data/expes/amrithya.balaji/scRNAseq/scbert/testing.py", line 10, in main
+    main()
+  File "/baie/data1/data/expes/amrithya.balaji/scRNAseq/scbert/testing.py", line 10, in main
+    torch.cuda.set_device(args.local_rank)
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/cuda/__init__.py", line 527, in set_device
+    torch.cuda.set_device(args.local_rank)
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/cuda/__init__.py", line 527, in set_device
+    device = _get_device_index(device)
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/cuda/_utils.py", line 38, in _get_device_index
+    device = _get_device_index(device)
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/cuda/_utils.py", line 38, in _get_device_index
+Traceback (most recent call last):
+  File "/baie/data1/data/expes/amrithya.balaji/scRNAseq/scbert/testing.py", line 16, in <module>
+    main()
+  File "/baie/data1/data/expes/amrithya.balaji/scRNAseq/scbert/testing.py", line 10, in main
+    torch.cuda.set_device(args.local_rank)
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/cuda/__init__.py", line 527, in set_device
+    device = _get_device_index(device)
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/cuda/_utils.py", line 38, in _get_device_index
+Traceback (most recent call last):
+  File "/baie/data1/data/expes/amrithya.balaji/scRNAseq/scbert/testing.py", line 16, in <module>
+    main()
+  File "/baie/data1/data/expes/amrithya.balaji/scRNAseq/scbert/testing.py", line 10, in main
+    torch.cuda.set_device(args.local_rank)
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/cuda/__init__.py", line 527, in set_device
+    device = _get_device_index(device)
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/cuda/_utils.py", line 38, in _get_device_index
+        return _torch_get_device_index(device, optional, allow_cpu)    return _torch_get_device_index(device, optional, allow_cpu)
+return _torch_get_device_index(device, optional, allow_cpu)
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/_utils.py", line 853, in _get_device_index
+
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/_utils.py", line 853, in _get_device_index
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/_utils.py", line 853, in _get_device_index
+    return _torch_get_device_index(device, optional, allow_cpu)
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/_utils.py", line 853, in _get_device_index
+    raise ValueError(
+    ValueErrorraise ValueError(: 
+Expected a torch.device with a specified index or an integer, but got:None
+ValueError    : raise ValueError(Expected a torch.device with a specified index or an integer, but got:None
+
+ValueError: Expected a torch.device with a specified index or an integer, but got:None
+    raise ValueError(
+ValueError: Expected a torch.device with a specified index or an integer, but got:None
+E0523 16:51:18.811000 1459780 site-packages/torch/distributed/elastic/multiprocessing/api.py:874] failed (exitcode: 1) local_rank: 0 (pid: 1459815) of binary: /public/conda/user_envs/amrithya.balaji/envs/arb/bin/python
+Traceback (most recent call last):
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/bin/torchrun", line 8, in <module>
+    sys.exit(main())
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 355, in wrapper
+    return f(*args, **kwargs)
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/run.py", line 892, in main
+    run(args)
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/run.py", line 883, in run
+    elastic_launch(
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/launcher/api.py", line 139, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/launcher/api.py", line 270, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+testing.py FAILED
+------------------------------------------------------------
+Failures:
+[1]:
+  time      : 2025-05-23_16:51:18
+  host      : mundus-mir-2.localdomain
+  rank      : 1 (local_rank: 1)
+  exitcode  : 1 (pid: 1459816)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+[2]:
+  time      : 2025-05-23_16:51:18
+  host      : mundus-mir-2.localdomain
+  rank      : 2 (local_rank: 2)
+  exitcode  : 1 (pid: 1459817)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+[3]:
+  time      : 2025-05-23_16:51:18
+  host      : mundus-mir-2.localdomain
+  rank      : 3 (local_rank: 3)
+  exitcode  : 1 (pid: 1459818)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2025-05-23_16:51:18
+  host      : mundus-mir-2.localdomain
+  rank      : 0 (local_rank: 0)
+  exitcode  : 1 (pid: 1459815)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================

@@ -1,0 +1,65 @@
+The "poetry.dev-dependencies" section is deprecated and will be removed in a future version. Use "poetry.group.dev.dependencies" instead.
+W0523 16:43:47.926000 1459422 site-packages/torch/distributed/run.py:766] 
+W0523 16:43:47.926000 1459422 site-packages/torch/distributed/run.py:766] *****************************************
+W0523 16:43:47.926000 1459422 site-packages/torch/distributed/run.py:766] Setting OMP_NUM_THREADS environment variable for each process to be 1 in default, to avoid your system being overloaded, please further tune the variable for optimal performance in your application as needed. 
+W0523 16:43:47.926000 1459422 site-packages/torch/distributed/run.py:766] *****************************************
+[rank3]: Traceback (most recent call last):
+[rank3]:   File "/baie/data1/data/expes/amrithya.balaji/scRNAseq/scbert/besteffort_finetuning.py", line 58, in <module>
+[rank3]:     torch.cuda.set_device(local_rank)
+[rank3]:   File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/cuda/__init__.py", line 529, in set_device
+[rank3]:     torch._C._cuda_setDevice(device)
+[rank3]: RuntimeError: CUDA error: invalid device ordinal
+[rank3]: Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+
+[rank3]:[W523 16:44:05.168523459 ProcessGroupNCCL.cpp:1476] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+/baie/data1/data/expes/amrithya.balaji/scRNAseq/scbert/performer_pytorch/performer_pytorch.py:115: UserWarning: torch.qr is deprecated in favor of torch.linalg.qr and will be removed in a future PyTorch release.
+The boolean parameter 'some' has been replaced with a string parameter 'mode'.
+Q, R = torch.qr(A, some)
+should be replaced with
+Q, R = torch.linalg.qr(A, 'reduced' if some else 'complete') (Triggered internally at /pytorch/aten/src/ATen/native/BatchLinearAlgebra.cpp:2487.)
+  q, r = torch.qr(unstructured_block.cpu(), some = True)
+/baie/data1/data/expes/amrithya.balaji/scRNAseq/scbert/performer_pytorch/performer_pytorch.py:115: UserWarning: torch.qr is deprecated in favor of torch.linalg.qr and will be removed in a future PyTorch release.
+The boolean parameter 'some' has been replaced with a string parameter 'mode'.
+Q, R = torch.qr(A, some)
+should be replaced with
+Q, R = torch.linalg.qr(A, 'reduced' if some else 'complete') (Triggered internally at /pytorch/aten/src/ATen/native/BatchLinearAlgebra.cpp:2487.)
+  q, r = torch.qr(unstructured_block.cpu(), some = True)
+/baie/data1/data/expes/amrithya.balaji/scRNAseq/scbert/performer_pytorch/performer_pytorch.py:115: UserWarning: torch.qr is deprecated in favor of torch.linalg.qr and will be removed in a future PyTorch release.
+The boolean parameter 'some' has been replaced with a string parameter 'mode'.
+Q, R = torch.qr(A, some)
+should be replaced with
+Q, R = torch.linalg.qr(A, 'reduced' if some else 'complete') (Triggered internally at /pytorch/aten/src/ATen/native/BatchLinearAlgebra.cpp:2487.)
+  q, r = torch.qr(unstructured_block.cpu(), some = True)
+W0523 16:44:07.077000 1459422 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 1459458 closing signal SIGTERM
+W0523 16:44:07.078000 1459422 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 1459459 closing signal SIGTERM
+W0523 16:44:07.078000 1459422 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 1459460 closing signal SIGTERM
+E0523 16:44:07.443000 1459422 site-packages/torch/distributed/elastic/multiprocessing/api.py:874] failed (exitcode: 1) local_rank: 3 (pid: 1459461) of binary: /public/conda/user_envs/amrithya.balaji/envs/arb/bin/python
+Traceback (most recent call last):
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/bin/torchrun", line 8, in <module>
+    sys.exit(main())
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 355, in wrapper
+    return f(*args, **kwargs)
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/run.py", line 892, in main
+    run(args)
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/run.py", line 883, in run
+    elastic_launch(
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/launcher/api.py", line 139, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/launcher/api.py", line 270, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+besteffort_finetuning.py FAILED
+------------------------------------------------------------
+Failures:
+  <NO_OTHER_FAILURES>
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2025-05-23_16:44:07
+  host      : mundus-mir-2.localdomain
+  rank      : 3 (local_rank: 3)
+  exitcode  : 1 (pid: 1459461)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================
