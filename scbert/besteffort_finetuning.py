@@ -54,8 +54,9 @@ local_rank = int(os.environ.get("LOCAL_RANK"))
 is_master = local_rank == 0
 
 dist.init_process_group(backend='nccl')
+local_rank = int(os.environ['LOCAL_RANK'])
+torch.cuda.set_device(local_rank)
 device = torch.device(f"cuda:{local_rank}")
-torch.cuda.set_device(device)
 world_size = torch.distributed.get_world_size()
 
 print(f"[Init] Seed: {SEED}, Epochs: {EPOCHS}, Batch size: {BATCH_SIZE}, LR: {LEARNING_RATE}")
