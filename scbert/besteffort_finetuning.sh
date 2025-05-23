@@ -4,7 +4,7 @@
 
 #SBATCH --partition=besteffort                     # Use besteffort partition
 
-#SBATCH --gres=gpu:a40-48:4                              # Request 4 GPUs
+#SBATCH --gres=gpu:4                              # Request 4 GPUs
 
 #SBATCH --ntasks=4                                 # One task per GPU
 
