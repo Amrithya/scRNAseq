@@ -54,8 +54,8 @@ local_rank = args.local_rank
 is_master = local_rank == 0
 
 dist.init_process_group(backend='nccl')
-torch.cuda.set_device(local_rank)
-device = torch.device("cuda", local_rank)
+device = torch.device(f"cuda:{local_rank}")
+torch.cuda.set_device(device)
 world_size = torch.distributed.get_world_size()
 
 CLASS = args.bin_num + 2
@@ -140,8 +140,7 @@ for param in model.to_out.parameters():
     param.requires_grad = True
 
 model = model.to(device)
-model = DDP(model, device_ids=[local_rank])
-
+model = DDP(model, device_ids=[local_rank], output_device=local_rank)
 trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 if is_master:
     print(f"[Model] Loaded pretrained weights. Trainable params: {trainable_params}")
