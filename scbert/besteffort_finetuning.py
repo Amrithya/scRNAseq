@@ -16,7 +16,7 @@ from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, classifi
 import random
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--local_rank", "--local-rank", type=int, default=-1, help='Local process rank.')
+#parser.add_argument("--local_rank", "--local-rank", type=int, default=-1, help='Local process rank.')
 parser.add_argument("--bin_num", type=int, default=5, help='Number of bins.')
 parser.add_argument("--gene_num", type=int, default=16906, help='Number of genes.')
 parser.add_argument("--epoch", type=int, default=5, help='Number of epochs.')
@@ -50,7 +50,7 @@ PATIENCE = 10
 model_name = args.model_name
 ckpt_dir = args.ckpt_dir
 
-local_rank = args.local_rank
+local_rank = int(os.environ['LOCAL_RANK'])
 is_master = local_rank == 0
 
 dist.init_process_group(backend='nccl')
@@ -141,6 +141,7 @@ for param in model.to_out.parameters():
 
 model = model.to(device)
 model = DDP(model, device_ids=[local_rank], output_device=local_rank)
+
 trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 if is_master:
     print(f"[Model] Loaded pretrained weights. Trainable params: {trainable_params}")
