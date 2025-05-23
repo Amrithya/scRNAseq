@@ -52,16 +52,16 @@ ckpt_dir = args.ckpt_dir
 
 #local_rank = args.local_rank
 local_rank = int(os.environ.get('LOCAL_RANK', os.environ.get('SLURM_LOCALID', args.local_rank)))
-device = torch.device("cuda", local_rank)
-print(f"[Rank {dist.get_rank()}] Local Rank: {local_rank}, Using Device: {torch.cuda.current_device()}")
-print(f"[Rank {dist.get_rank()}] CUDA_VISIBLE_DEVICES={os.environ.get('CUDA_VISIBLE_DEVICES')}")
-
 is_master = local_rank == 0
 
 dist.init_process_group(backend='nccl',init_method='env://')
 torch.cuda.set_device(local_rank)
 device = torch.device("cuda", local_rank)
 world_size = torch.distributed.get_world_size()
+
+print(f"[Rank {dist.get_rank()}] Local Rank: {local_rank}, Using Device: {torch.cuda.current_device()}")
+print(f"[Rank {dist.get_rank()}] CUDA_VISIBLE_DEVICES={os.environ.get('CUDA_VISIBLE_DEVICES')}")
+
 
 CLASS = args.bin_num + 2
 SEQ_LEN = args.gene_num + 1
