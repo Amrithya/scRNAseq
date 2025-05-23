@@ -1,0 +1,5 @@
+[Init] Seed: 2021, Epochs: 5, Batch size: 10, LR: 0.0001
+[Init] Using 4 GPUs, local_rank: 0
+[Data] Loaded data shape: (68450, 16906), Labels: 11
+[Split] Train: 54760, Validation: 13690
+All Done!

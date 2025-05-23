@@ -1,0 +1,22 @@
+[Init] Seed: 2021, Epochs: 5, Batch size: 3, LR: 0.0001
+[Init] Using 2 GPUs, local_rank: 0
+[Data] Loaded data shape: (68450, 16906), Labels: 11
+[Split] Train: 54760, Validation: 13690
+[Model] Loaded pretrained weights. Trainable params: 186189
+[Training] Starting training...
+Shape after Performer, before Identity: torch.Size([3, 16907, 200])
+Shape after Performer, before Identity: torch.Size([3, 16907, 200])
+Shape after Identity: torch.Size([3, 11])
+Shape after Identity: torch.Size([3, 11])
+[Epoch 1] Batch 60 step done, loss: 2.418460
+[Epoch 1] Batch 120 step done, loss: 2.367449
+[Epoch 1] Batch 180 step done, loss: 2.312134
+[Epoch 1] Batch 240 step done, loss: 2.224902
+[Epoch 1] Batch 300 step done, loss: 2.289485
+[Epoch 1] Batch 360 step done, loss: 2.693273
+[Epoch 1] Batch 420 step done, loss: 2.337929
+[Epoch 1] Batch 480 step done, loss: 2.027085
+[Epoch 1] Batch 540 step done, loss: 2.774745
+[Epoch 1] Batch 600 step done, loss: 2.312031
+[Epoch 1] Batch 660 step done, loss: 2.344749
+[Epoch 1] Batch 720 step done, loss: 2.230735

@@ -1,0 +1,10 @@
+[Init] Seed: 2021, Epochs: 5, Batch size: 3, LR: 0.0001
+[Init] Using 1 GPUs, local_rank: 0
+[Data] Loaded data shape: (68450, 16906), Labels: 11
+[Split] Train: 54760, Validation: 13690
+[Model] Loaded pretrained weights. Trainable params: 253272
+[Training] Starting training...
+Shape after Performer, before Identity: torch.Size([3, 16907, 200])
+Shape after Identity: torch.Size([3, 11])
+[Epoch 1] Batch 60 step done, loss: 2.496022
+All Done!

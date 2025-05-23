@@ -1,0 +1,69 @@
+The "poetry.dev-dependencies" section is deprecated and will be removed in a future version. Use "poetry.group.dev.dependencies" instead.
+/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/launch.py:207: FutureWarning: The module torch.distributed.launch is deprecated
+and will be removed in future. Use torchrun.
+Note that --use-env is set by default in torchrun.
+If your script expects `--local-rank` argument to be set, please
+change it to read from `os.environ['LOCAL_RANK']` instead. See 
+https://pytorch.org/docs/stable/distributed.html#launch-utility for 
+further instructions
+
+  main()
+/baie/data1/data/expes/amrithya.balaji/scRNAseq/scbert/performer_pytorch/performer_pytorch.py:115: UserWarning: torch.qr is deprecated in favor of torch.linalg.qr and will be removed in a future PyTorch release.
+The boolean parameter 'some' has been replaced with a string parameter 'mode'.
+Q, R = torch.qr(A, some)
+should be replaced with
+Q, R = torch.linalg.qr(A, 'reduced' if some else 'complete') (Triggered internally at /pytorch/aten/src/ATen/native/BatchLinearAlgebra.cpp:2487.)
+  q, r = torch.qr(unstructured_block.cpu(), some = True)
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/baie/data1/data/expes/amrithya.balaji/scRNAseq/scbert/finetune_nobp.py", line 198, in <module>
+[rank0]:     logits = model(data)
+[rank0]:   File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1751, in _wrapped_call_impl
+[rank0]:     return self._call_impl(*args, **kwargs)
+[rank0]:   File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1762, in _call_impl
+[rank0]:     return forward_call(*args, **kwargs)
+[rank0]:   File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/nn/parallel/distributed.py", line 1633, in forward
+[rank0]:     inputs, kwargs = self._pre_forward(*inputs, **kwargs)
+[rank0]:   File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/nn/parallel/distributed.py", line 1522, in _pre_forward
+[rank0]:     if torch.is_grad_enabled() and self.reducer._rebuild_buckets():
+[rank0]: RuntimeError: Expected to have finished reduction in the prior iteration before starting a new one. This error indicates that your module has parameters that were not used in producing loss. You can enable unused parameter detection by passing the keyword argument `find_unused_parameters=True` to `torch.nn.parallel.DistributedDataParallel`, and by 
+[rank0]: making sure all `forward` function outputs participate in calculating loss. 
+[rank0]: If you already have done the above, then the distributed data parallel module wasn't able to locate the output tensors in the return value of your module's `forward` function. Please include the loss function and the structure of the return value of `forward` of your module when reporting this issue (e.g. list, dict, iterable).
+[rank0]: Parameter indices which did not receive grad for rank 0: 4 5 6 7
+[rank0]:  In addition, you can set the environment variable TORCH_DISTRIBUTED_DEBUG to either INFO or DETAIL to print out information about which particular parameters did not receive gradient on this rank as part of this error
+[rank0]:[W523 11:02:17.097437402 ProcessGroupNCCL.cpp:1476] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+E0523 11:02:19.898000 876803 site-packages/torch/distributed/elastic/multiprocessing/api.py:874] failed (exitcode: 1) local_rank: 0 (pid: 876824) of binary: /public/conda/user_envs/amrithya.balaji/envs/arb/bin/python
+Traceback (most recent call last):
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/launch.py", line 207, in <module>
+    main()
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/typing_extensions.py", line 3253, in wrapper
+    return arg(*args, **kwargs)
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/launch.py", line 203, in main
+    launch(args)
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/launch.py", line 188, in launch
+    run(args)
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/run.py", line 883, in run
+    elastic_launch(
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/launcher/api.py", line 139, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+  File "/public/conda/user_envs/amrithya.balaji/envs/arb/lib/python3.10/site-packages/torch/distributed/launcher/api.py", line 270, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+finetune_nobp.py FAILED
+------------------------------------------------------------
+Failures:
+  <NO_OTHER_FAILURES>
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2025-05-23_11:02:19
+  host      : lisnode2.localdomain
+  rank      : 0 (local_rank: 0)
+  exitcode  : 1 (pid: 876824)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================

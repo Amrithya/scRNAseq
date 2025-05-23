@@ -1,0 +1,10 @@
+[Init] Seed: 2021, Epochs: 5, Batch size: 10, LR: 0.0001
+[Init] Using 2 GPUs, local_rank: 0
+[Data] Loaded data shape: (68450, 16906), Labels: 11
+[Split] Train: 54760, Validation: 13690
+[Model] Loaded pretrained weights. Trainable params: 186189
+[Training] Starting training...
+Shape after Performer, before Identity: torch.Size([10, 16907, 200])
+Shape after Performer, before Identity: torch.Size([10, 16907, 200])
+Shape after Identity: torch.Size([10, 11])
+Shape after Identity: torch.Size([10, 11])

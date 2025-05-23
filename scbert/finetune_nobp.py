@@ -22,7 +22,7 @@ parser.add_argument("--bin_num", type=int, default=5, help='Number of bins.')
 parser.add_argument("--gene_num", type=int, default=16906, help='Number of genes.')
 parser.add_argument("--epoch", type=int, default=5, help='Number of epochs.')
 parser.add_argument("--seed", type=int, default=2021, help='Random seed.')
-parser.add_argument("--batch_size", type=int, default=3, help='Number of batch size.')
+parser.add_argument("--batch_size", type=int, default=10, help='Number of batch size.')
 parser.add_argument("--learning_rate", type=float, default=1e-4, help='Learning rate.')
 parser.add_argument("--grad_acc", type=int, default=60, help='Number of gradient accumulation.')
 parser.add_argument("--valid_every", type=int, default=1, help='Number of training epochs between twice validation.')
@@ -206,7 +206,8 @@ for i in range(1, EPOCHS+1):
             optimizer.step()
             optimizer.zero_grad()
             if is_master:
-                print(f"[Epoch {i}] Batch {index} step done, loss: {loss.item():.6f}")
+                if index % 100 == 0:
+                    print(f"[Epoch {i}] Batch {index} step done, loss: {loss.item():.6f}")
 
         running_loss += loss.item()
         softmax = nn.Softmax(dim=-1)

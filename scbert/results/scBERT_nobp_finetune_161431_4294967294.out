@@ -1,0 +1,36 @@
+[Init] Seed: 2021, Epochs: 5, Batch size: 3, LR: 0.0001
+[Init] Using 1 GPUs, local_rank: 0
+[Data] Loaded data shape: (68450, 16906), Labels: 11
+[Split] Train: 54760, Validation: 13690
+[Model] Loaded pretrained weights. Trainable params: 186189
+[Training] Starting training...
+Shape after Performer, before Identity: torch.Size([3, 16907, 200])
+Shape after Identity: torch.Size([3, 11])
+[Epoch 1] Batch 60 step done, loss: 2.496022
+[Epoch 1] Batch 120 step done, loss: 2.332841
+[Epoch 1] Batch 180 step done, loss: 2.303965
+[Epoch 1] Batch 240 step done, loss: 2.292763
+[Epoch 1] Batch 300 step done, loss: 2.236834
+[Epoch 1] Batch 360 step done, loss: 2.867303
+[Epoch 1] Batch 420 step done, loss: 1.619638
+[Epoch 1] Batch 480 step done, loss: 2.182350
+[Epoch 1] Batch 540 step done, loss: 1.677484
+[Epoch 1] Batch 600 step done, loss: 1.898824
+[Epoch 1] Batch 660 step done, loss: 2.306183
+[Epoch 1] Batch 720 step done, loss: 2.697691
+[Epoch 1] Batch 780 step done, loss: 1.981889
+[Epoch 1] Batch 840 step done, loss: 2.447341
+[Epoch 1] Batch 900 step done, loss: 2.619645
+[Epoch 1] Batch 960 step done, loss: 2.259134
+[Epoch 1] Batch 1020 step done, loss: 2.280456
+[Epoch 1] Batch 1080 step done, loss: 2.343468
+[Epoch 1] Batch 1140 step done, loss: 2.230241
+[Epoch 1] Batch 1200 step done, loss: 2.048982
+[Epoch 1] Batch 1260 step done, loss: 2.233077
+[Epoch 1] Batch 1320 step done, loss: 2.476917
+[Epoch 1] Batch 1380 step done, loss: 2.183914
+[Epoch 1] Batch 1440 step done, loss: 1.989066
+[Epoch 1] Batch 1500 step done, loss: 2.258904
+[Epoch 1] Batch 1560 step done, loss: 1.972682
+[Epoch 1] Batch 1620 step done, loss: 2.683189
+[Epoch 1] Batch 1680 step done, loss: 1.794197
