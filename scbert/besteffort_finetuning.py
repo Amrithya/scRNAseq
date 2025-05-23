@@ -50,15 +50,17 @@ PATIENCE = 10
 model_name = args.model_name
 ckpt_dir = args.ckpt_dir
 
-local_rank = int(os.environ.get("LOCAL_RANK"))
-is_master = local_rank == 0
+local_rank = int(os.environ.get("LOCAL_RANK", -1))
+if local_rank == -1:
+    raise ValueError("LOCAL_RANK env var missing")
 
 dist.init_process_group(backend='nccl')
-local_rank = int(os.environ['LOCAL_RANK'])
+
 torch.cuda.set_device(local_rank)
 device = torch.device(f"cuda:{local_rank}")
-world_size = torch.distributed.get_world_size()
+world_size = dist.get_world_size()
 
+is_master = local_rank == 0
 print(f"[Init] Seed: {SEED}, Epochs: {EPOCHS}, Batch size: {BATCH_SIZE}, LR: {LEARNING_RATE}")
 print(f"[Init] Using {world_size} GPUs, local_rank: {local_rank}")
 

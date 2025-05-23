@@ -1,29 +1,24 @@
 #!/bin/bash
 
-#SBATCH --job-name="besteffort_finetune"          # Job Name
-
-#SBATCH --partition=besteffort                     # Use besteffort partition
-
-#SBATCH --gres=gpu:4                              # Request 4 GPUs
-
-#SBATCH --ntasks=4                                 # One task per GPU
-
+#SBATCH --job-name="besteffort_finetune"
+#SBATCH --partition=besteffort
+#SBATCH --gres=gpu:4
+#SBATCH --ntasks=4
 #SBATCH --cpus-per-task=3
-
 #SBATCH --hint=nomultithread
+#SBATCH --time=48:00:00
+#SBATCH --output=results/besteffort_finetune_%A_%a.out
+#SBATCH --error=results/besteffort_finetune_%A_%a.err
+#SBATCH --requeue
 
-#SBATCH --time=48:00:00                            # Max runtime (HH:MM:SS)
+export CUDA_VISIBLE_DEVICES=0,1,2,3
 
-#SBATCH --output=results/besteffort_finetune_%A_%a.out    # STDOUT file
+# Optional: only set if debugging CUDA issues
+# export CUDA_LAUNCH_BLOCKING=1
 
-#SBATCH --error=results/besteffort_finetune_%A_%a.err     # STDERR file
-
-#SBATCH --requeue                                 
-
-CUDA_VISIBLE_DEVICES=1,2,3,4 CUDA_LAUNCH_BLOCKING=1 poetry run torchrun --nproc_per_node=4 besteffort_finetuning.py \
+poetry run torchrun --nproc_per_node=4 besteffort_finetuning.py \
     --data_path "/data1/data/corpus/Zheng68K.h5ad" \
     --model_path "/data1/data/corpus/panglao_pretrain.pth"
 
 echo "All Done!"
 wait
-
