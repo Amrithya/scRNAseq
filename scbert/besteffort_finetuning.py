@@ -16,7 +16,7 @@ from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, classifi
 import random
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--local_rank", "--local-rank", type=int, default=-1, help='Local process rank.')
+#parser.add_argument("--local_rank", "--local-rank", type=int, default=-1, help='Local process rank.')
 parser.add_argument("--bin_num", type=int, default=5, help='Number of bins.')
 parser.add_argument("--gene_num", type=int, default=16906, help='Number of genes.')
 parser.add_argument("--epoch", type=int, default=5, help='Number of epochs.')
@@ -30,7 +30,7 @@ parser.add_argument("--data_path", type=str, default='./data/Zheng68K.h5ad', hel
 parser.add_argument("--model_path", type=str, default='./panglao_pretrained.pth', help='Path of pretrained model.')
 parser.add_argument("--ckpt_dir", type=str, default='./ckpts/', help='Directory of checkpoint to save.')
 parser.add_argument("--model_name", type=str, default='finetune', help='Finetuned model name.')
-args = parser.parse_args()
+args, _ = parser.parse_known_args()
 
 random.seed(args.seed)
 np.random.seed(args.seed)
@@ -50,7 +50,7 @@ PATIENCE = 10
 model_name = args.model_name
 ckpt_dir = args.ckpt_dir
 
-local_rank = int(os.environ['LOCAL_RANK'])
+local_rank = int(os.environ.get("LOCAL_RANK"))
 is_master = local_rank == 0
 
 dist.init_process_group(backend='nccl')
