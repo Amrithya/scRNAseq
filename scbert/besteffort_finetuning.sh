@@ -11,12 +11,7 @@
 #SBATCH --error=results/besteffort_finetune_%A_%a.err
 #SBATCH --requeue
 
-export CUDA_VISIBLE_DEVICES=0,1,2,3
-
-# Optional: only set if debugging CUDA issues
-# export CUDA_LAUNCH_BLOCKING=1
-
-poetry run torchrun --nproc_per_node=4 besteffort_finetuning.py \
+CUDA_LAUNCH_BLOCKING=1 poetry run torchrun --nproc_per_node=4 besteffort_finetuning.py \
     --data_path "/data1/data/corpus/Zheng68K.h5ad" \
     --model_path "/data1/data/corpus/panglao_pretrain.pth"
 
