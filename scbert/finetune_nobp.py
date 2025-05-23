@@ -20,7 +20,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--local_rank", "--local-rank", type=int, default=-1, help='Local process rank.')
 parser.add_argument("--bin_num", type=int, default=5, help='Number of bins.')
 parser.add_argument("--gene_num", type=int, default=16906, help='Number of genes.')
-parser.add_argument("--epoch", type=int, default=10, help='Number of epochs.')
+parser.add_argument("--epoch", type=int, default=5, help='Number of epochs.')
 parser.add_argument("--seed", type=int, default=2021, help='Random seed.')
 parser.add_argument("--batch_size", type=int, default=3, help='Number of batch size.')
 parser.add_argument("--learning_rate", type=float, default=1e-4, help='Learning rate.')
@@ -90,7 +90,7 @@ class Identity(nn.Module):
         super().__init__()
         self.conv1 = nn.Conv2d(1, 1, (1, 200))
         self.act = nn.ReLU()
-        self.fc1 = nn.Linear(SEQ_LEN, 512)
+        self.fc1 = nn.Linear(SEQ_LEN, out_dim)
         self.act1 = nn.ReLU()
         self.dropout1 = nn.Dropout(dropout)
         self.fc2 = nn.Linear(512, h_dim)
@@ -108,11 +108,11 @@ class Identity(nn.Module):
         x = x.view(x.shape[0], -1)
         x = self.fc1(x)
         x = self.act1(x)
-        x = self.dropout1(x)
-        x = self.fc2(x)
-        x = self.act2(x)
-        x = self.dropout2(x)
-        x = self.fc3(x)
+        #x = self.dropout1(x)
+        #x = self.fc2(x)
+        #x = self.act2(x)
+        #x = self.dropout2(x)
+        #x = self.fc3(x)
         if not self._printed:
             print(f"Shape after Identity: {x.shape}")
             self._printed = True
@@ -159,7 +159,7 @@ for param in model.to_out.parameters():
     param.requires_grad = True
 
 model = model.to(device)
-model = DDP(model, device_ids=[local_rank])
+model = DDP(model, device_ids=[local_rank]) 
 
 trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 if is_master:

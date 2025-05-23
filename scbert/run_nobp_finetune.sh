@@ -4,7 +4,7 @@
 
 #SBATCH --partition=gpu                     # Partition name
 
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:a40-48:2
 
 #SBATCH --ntasks-per-node=1
 

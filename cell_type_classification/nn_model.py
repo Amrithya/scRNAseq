@@ -26,7 +26,6 @@ def train_nn(device, train_data, test_data, lr_rate, weights, input_size, output
             self.fc2 = nn.Linear(hidden_size, hidden_size // 2)
             self.dropout2 = nn.Dropout(dropout_rate)
             self.fc3 = nn.Linear(hidden_size // 2, output_size)
-            self.softmax = nn.Softmax(dim=1)
         
         def forward(self, x):
             x = self.fc1(x)
@@ -36,7 +35,6 @@ def train_nn(device, train_data, test_data, lr_rate, weights, input_size, output
             x = self.relu(x)
             x = self.dropout2(x)
             x = self.fc3(x)
-            x = self.softmax(x)
             return x
 
     num_epochs = 10
