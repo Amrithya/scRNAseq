@@ -15,7 +15,6 @@ from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, classification_report
 import random
 
-# Set up argument parser
 parser = argparse.ArgumentParser()
 parser.add_argument("--local_rank", "--local-rank", type=int, default=-1, help='Local process rank.')
 parser.add_argument("--bin_num", type=int, default=5, help='Number of bins.')
@@ -33,7 +32,6 @@ parser.add_argument("--ckpt_dir", type=str, default='./ckpts/', help='Directory 
 parser.add_argument("--model_name", type=str, default='finetune', help='Finetuned model name.')
 args = parser.parse_args()
 
-# Set seeds
 random.seed(args.seed)
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
@@ -55,15 +53,10 @@ ckpt_dir = args.ckpt_dir
 local_rank = args.local_rank
 is_master = local_rank == 0
 
-# DDP setup
 dist.init_process_group(backend='nccl')
 torch.cuda.set_device(local_rank)
 device = torch.device("cuda", local_rank)
 world_size = torch.distributed.get_world_size()
-
-if is_master:
-    print(f"[Init] Seed: {SEED}, Epochs: {EPOCHS}, Batch size: {BATCH_SIZE}, LR: {LEARNING_RATE}")
-    print(f"[Init] Using {world_size} GPUs, local_rank: {local_rank}")
 
 CLASS = args.bin_num + 2
 SEQ_LEN = args.gene_num + 1
@@ -72,7 +65,6 @@ class SCDataset(Dataset):
     def __init__(self, data, label):
         self.data = data
         self.label = label
-
     def __getitem__(self, index):
         full_seq = self.data[index].toarray()[0]
         full_seq[full_seq > (CLASS - 2)] = CLASS - 2
@@ -81,7 +73,6 @@ class SCDataset(Dataset):
         if index < 3 and is_master:
             print(f"[Dataset] idx {index}, sequence sample (first 10): {full_seq[:10]}, label: {self.label[index]}")
         return full_seq, self.label[index]
-
     def __len__(self):
         return self.data.shape[0]
 
@@ -92,13 +83,7 @@ class Identity(nn.Module):
         self.act = nn.ReLU()
         self.fc1 = nn.Linear(SEQ_LEN, out_dim)
         self.act1 = nn.ReLU()
-        #self.dropout1 = nn.Dropout(dropout)
-        #self.fc2 = nn.Linear(512, h_dim)
-        #self.act2 = nn.ReLU()
-        #self.dropout2 = nn.Dropout(dropout)
-        #self.fc3 = nn.Linear(h_dim, out_dim)
         self._printed = False
-
     def forward(self, x):
         if not self._printed:
             print(f"Shape after Performer, before Identity: {x.shape}")
@@ -108,11 +93,6 @@ class Identity(nn.Module):
         x = x.view(x.shape[0], -1)
         x = self.fc1(x)
         x = self.act1(x)
-        #x = self.dropout1(x)
-        #x = self.fc2(x)
-        #x = self.act2(x)
-        #x = self.dropout2(x)
-        #x = self.fc3(x)
         if not self._printed:
             print(f"Shape after Identity: {x.shape}")
             self._printed = True
@@ -159,7 +139,7 @@ for param in model.to_out.parameters():
     param.requires_grad = True
 
 model = model.to(device)
-model = DDP(model, device_ids=[local_rank]) 
+model = DDP(model, device_ids=[local_rank])
 
 trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 if is_master:
@@ -169,11 +149,11 @@ criterion = nn.CrossEntropyLoss().to(local_rank)
 optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=LEARNING_RATE)
 
 train_sampler = DistributedSampler(train_dataset)
-train_loader = DataLoader(train_dataset, batch_size=args.batch_size, 
+train_loader = DataLoader(train_dataset, batch_size=args.batch_size,
                          sampler=train_sampler, num_workers=0, pin_memory=True)
 
 val_sampler = DistributedSampler(val_dataset)
-val_loader = DataLoader(val_dataset, batch_size=args.batch_size, num_workers=0, pin_memory=True) if is_master else None
+val_loader = DataLoader(val_dataset, batch_size=args.batch_size, sampler=val_sampler, num_workers=0, pin_memory=True) if is_master else None
 
 dist.barrier()
 trigger_times = 0
@@ -226,51 +206,50 @@ for i in range(1, EPOCHS+1):
     dist.barrier()
 
     if i % VALIDATE_EVERY == 0:
-        model.eval()
-        dist.barrier()
-        running_loss = 0.0
-        predictions, truths = [], []
-        with torch.no_grad():
-            for index, (data_v, labels_v) in enumerate(val_loader):
-                index += 1
-                data_v, labels_v = data_v.to(device), labels_v.to(device)
-                logits = model(data_v)
-                loss = criterion(logits, labels_v)
-                running_loss += loss.item()
-                softmax = nn.Softmax(dim=-1)
-                final_prob = softmax(logits)
-                final = final_prob.argmax(dim=-1)
-                final[np.amax(np.array(final_prob.cpu()), axis=-1) < UNASSIGN_THRES] = -1
-                predictions.append(final)
-                truths.append(labels_v)
-
-        predictions = distributed_concat(torch.cat(predictions, dim=0), len(val_sampler.dataset), world_size)
-        truths = distributed_concat(torch.cat(truths, dim=0), len(val_sampler.dataset), world_size)
-        no_drop = predictions != -1
-        predictions = np.array((predictions[no_drop]).cpu())
-        truths = np.array((truths[no_drop]).cpu())
-
-        cur_acc = accuracy_score(truths, predictions)
-        f1 = f1_score(truths, predictions, average='macro')
-        val_loss = running_loss / index
-        val_loss = get_reduced(val_loss, local_rank, 0, world_size)
-
         if is_master:
+            model.eval()
+            dist.barrier()
+            running_loss = 0.0
+            predictions, truths = [], []
+            with torch.no_grad():
+                for index, (data_v, labels_v) in enumerate(val_loader):
+                    index += 1
+                    data_v, labels_v = data_v.to(device), labels_v.to(device)
+                    logits = model(data_v)
+                    loss = criterion(logits, labels_v)
+                    running_loss += loss.item()
+                    softmax = nn.Softmax(dim=-1)
+                    final_prob = softmax(logits)
+                    final = final_prob.argmax(dim=-1)
+                    final[np.amax(np.array(final_prob.cpu()), axis=-1) < UNASSIGN_THRES] = -1
+                    predictions.append(final)
+                    truths.append(labels_v)
+
+            predictions = distributed_concat(torch.cat(predictions, dim=0), len(val_sampler.dataset), world_size)
+            truths = distributed_concat(torch.cat(truths, dim=0), len(val_sampler.dataset), world_size)
+            no_drop = predictions != -1
+            predictions = np.array((predictions[no_drop]).cpu())
+            truths = np.array((truths[no_drop]).cpu())
+
+            cur_acc = accuracy_score(truths, predictions)
+            f1 = f1_score(truths, predictions, average='macro')
+            val_loss = running_loss / index
+            val_loss = get_reduced(val_loss, local_rank, 0, world_size)
+
             print(f'[Epoch {i}] Val Loss: {val_loss:.6f} | Val F1: {f1:.4f}')
             print(confusion_matrix(truths, predictions))
             print(classification_report(truths, predictions, target_names=label_dict.tolist(), digits=4))
 
-        if cur_acc > max_acc:
-            max_acc = cur_acc
-            trigger_times = 0
-            save_best_ckpt(i, model, optimizer, val_loss, model_name, ckpt_dir)
-            if is_master:
+            if cur_acc > max_acc:
+                max_acc = cur_acc
+                trigger_times = 0
+                save_best_ckpt(i, model, optimizer, val_loss, model_name, ckpt_dir)
                 print(f'[Epoch {i}] New best model saved (Acc: {cur_acc:.4f})')
-        else:
-            trigger_times += 1
-            if trigger_times > PATIENCE:
-                if is_master:
+            else:
+                trigger_times += 1
+                if trigger_times > PATIENCE:
                     print(f"[Early Stop] Triggered at Epoch {i}")
-                break
-
-        del predictions, truths
+                    break
+            del predictions, truths
+        else:
+            dist.barrier()
