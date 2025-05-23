@@ -92,11 +92,11 @@ class Identity(nn.Module):
         self.act = nn.ReLU()
         self.fc1 = nn.Linear(SEQ_LEN, out_dim)
         self.act1 = nn.ReLU()
-        self.dropout1 = nn.Dropout(dropout)
-        self.fc2 = nn.Linear(512, h_dim)
-        self.act2 = nn.ReLU()
-        self.dropout2 = nn.Dropout(dropout)
-        self.fc3 = nn.Linear(h_dim, out_dim)
+        #self.dropout1 = nn.Dropout(dropout)
+        #self.fc2 = nn.Linear(512, h_dim)
+        #self.act2 = nn.ReLU()
+        #self.dropout2 = nn.Dropout(dropout)
+        #self.fc3 = nn.Linear(h_dim, out_dim)
         self._printed = False
 
     def forward(self, x):
