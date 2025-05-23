@@ -58,6 +58,9 @@ device = torch.device(f"cuda:{local_rank}")
 torch.cuda.set_device(device)
 world_size = torch.distributed.get_world_size()
 
+print(f"[Init] Seed: {SEED}, Epochs: {EPOCHS}, Batch size: {BATCH_SIZE}, LR: {LEARNING_RATE}")
+print(f"[Init] Using {world_size} GPUs, local_rank: {local_rank}")
+
 CLASS = args.bin_num + 2
 SEQ_LEN = args.gene_num + 1
 
