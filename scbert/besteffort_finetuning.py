@@ -149,7 +149,7 @@ trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 if is_master:
     print(f"[Model] Loaded pretrained weights. Trainable params: {trainable_params}")
 
-criterion = nn.CrossEntropyLoss().to(local_rank)
+criterion = nn.CrossEntropyLoss().to(device)
 optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=LEARNING_RATE)
 
 train_sampler = DistributedSampler(train_dataset)
@@ -210,9 +210,10 @@ for i in range(1, EPOCHS+1):
     dist.barrier()
 
     if i % VALIDATE_EVERY == 0:
+        model.eval()
+        dist.barrier()
         if is_master:
-            model.eval()
-            dist.barrier()
+            print("[Validation] Starting validation...")
             running_loss = 0.0
             predictions, truths = [], []
             with torch.no_grad():
