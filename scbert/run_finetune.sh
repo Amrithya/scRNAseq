@@ -23,7 +23,7 @@
 #SBATCH --array=1                       # Array job indices
 
 echo "gooo"
-poetry run python -u -m torch.distributed.launch finetune.py \
+poetry run python -u -m --nproc_per_node=2 torch.distributed.launch finetune.py \
 	--data_path "/data1/data/corpus/Zheng68K.h5ad" \
 	--model_path "/data1/data/corpus/panglao_pretrain.pth"
 
