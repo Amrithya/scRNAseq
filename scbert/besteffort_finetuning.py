@@ -53,7 +53,7 @@ local_rank = int(os.environ.get("LOCAL_RANK", -1))
 if local_rank == -1:
     raise ValueError("LOCAL_RANK env var missing")
 
-
+print("cuda device count",torch.cuda.device_count())
 dist.init_process_group(backend='nccl')
 torch.cuda.set_device(local_rank)
 device = torch.device(local_rank)
