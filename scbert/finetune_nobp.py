@@ -9,20 +9,20 @@ from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
 from performer_pytorch import PerformerLM
-from utils import *
 import scanpy as sc
 from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, classification_report
 import random
+from utils import save_best_ckpt
 from tqdm import tqdm
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--local_rank", "--local-rank", type=int, default=-1)
 parser.add_argument("--bin_num", type=int, default=5)
 parser.add_argument("--gene_num", type=int, default=16906)
-parser.add_argument("--epoch", type=int, default=5)
+parser.add_argument("--epoch", type=int, default=2)
 parser.add_argument("--seed", type=int, default=2021)
-parser.add_argument("--batch_size", type=int, default=10)
+parser.add_argument("--batch_size", type=int, default=8)
 parser.add_argument("--learning_rate", type=float, default=1e-4)
 parser.add_argument("--grad_acc", type=int, default=60)
 parser.add_argument("--valid_every", type=int, default=1)
@@ -161,6 +161,32 @@ dist.barrier()
 trigger_times = 0
 max_acc = 0.0
 
+def get_reduced(tensor, current_device, dest_device, world_size):
+    tensor = tensor.clone().detach() if torch.is_tensor(tensor) else torch.tensor(tensor)
+    tensor = tensor.to(current_device)
+    dist.reduce(tensor, dst=dest_device)
+    if dist.get_rank() == dest_device:
+        return tensor.item() / world_size
+    else:
+        return None
+
+def distributed_concat(tensor, num_total_examples, world_size):
+    local_size = torch.tensor([tensor.shape[0]], device=tensor.device)
+    size_list = [torch.zeros_like(local_size) for _ in range(world_size)]
+    dist.all_gather(size_list, local_size)
+
+    max_size = max([sz.item() for sz in size_list])
+    padded_tensor = torch.cat([
+        tensor,
+        torch.zeros((max_size - tensor.shape[0], *tensor.shape[1:]), device=tensor.device)
+    ], dim=0)
+
+    output_tensors = [torch.zeros_like(padded_tensor) for _ in range(world_size)]
+    dist.all_gather(output_tensors, padded_tensor)
+
+    concat = torch.cat([out[:size.item()] for out, size in zip(output_tensors, size_list)], dim=0)
+    return concat[:num_total_examples]
+
 try:
     for i in range(1, EPOCHS + 1):
         train_loader.sampler.set_epoch(i)
@@ -178,6 +204,7 @@ try:
             for data, labels in pbar:
                 batch_count += 1
                 data, labels = data.to(device), labels.to(device)
+
                 try:
                     if batch_count % GRADIENT_ACCUMULATION != 0:
                         with model.no_sync():
@@ -191,11 +218,13 @@ try:
                         torch.nn.utils.clip_grad_norm_(model.parameters(), 1e6)
                         optimizer.step()
                         optimizer.zero_grad()
+
                     running_loss += loss.item()
                     softmax = nn.Softmax(dim=-1)
                     final = softmax(logits).argmax(dim=-1)
                     correct_num = torch.eq(final, labels).sum().item()
                     cum_acc += correct_num / labels.size(0)
+
                     if is_master:
                         pbar.set_postfix(loss=loss.item())
                 except Exception as e:
@@ -211,10 +240,14 @@ try:
             print(f'[Epoch {i}] Train Loss: {epoch_loss:.6f} | Train Accuracy: {epoch_acc:.2f}%')
         dist.barrier()
 
-        if i % VALIDATE_EVERY == 0 and is_master:
-            print(f"[Epoch {i}] Starting validation...")
+        do_val = (i % VALIDATE_EVERY == 0)
+        if do_val:
             model.eval()
-            dist.barrier()
+
+        dist.barrier()
+
+        if do_val and is_master:
+            print(f"[Epoch {i}] Starting validation...")
             running_loss = 0.0
             predictions, truths = [], []
 
@@ -225,6 +258,7 @@ try:
                         logits = model(data_v)
                         loss = criterion(logits, labels_v)
                         running_loss += loss.item()
+
                         softmax = nn.Softmax(dim=-1)
                         final_prob = softmax(logits)
                         final = final_prob.argmax(dim=-1)
@@ -236,18 +270,28 @@ try:
                         continue
 
             try:
-                predictions = distributed_concat(torch.cat(predictions, dim=0), len(val_sampler.dataset), world_size)
-                truths = distributed_concat(torch.cat(truths, dim=0), len(val_sampler.dataset), world_size)
+                predictions = torch.cat(predictions, dim=0)
+                truths = torch.cat(truths, dim=0)
+            except Exception as e:
+                print(f"[Concatenation Error] {e}")
+                continue
+
+            try:
+                predictions = distributed_concat(predictions, len(val_sampler.dataset), world_size)
+                truths = distributed_concat(truths, len(val_sampler.dataset), world_size)
                 no_drop = predictions != -1
-                predictions = np.array((predictions[no_drop]).cpu())
-                truths = np.array((truths[no_drop]).cpu())
+                predictions = np.array(predictions[no_drop].cpu())
+                truths = np.array(truths[no_drop].cpu())
+
                 cur_acc = accuracy_score(truths, predictions)
                 f1 = f1_score(truths, predictions, average='macro')
                 val_loss = running_loss / len(val_loader)
                 val_loss = get_reduced(val_loss, local_rank, 0, world_size)
+
                 print(f'[Epoch {i}] Val Loss: {val_loss:.6f} | Val F1: {f1:.4f}')
                 print(confusion_matrix(truths, predictions))
                 print(classification_report(truths, predictions, target_names=label_dict.tolist(), digits=4))
+
                 if cur_acc > max_acc:
                     max_acc = cur_acc
                     trigger_times = 0
