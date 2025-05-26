@@ -4,7 +4,7 @@
 
 #SBATCH --partition=gpu                     # Partition name
 
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:2
 
 #SBATCH --nodes=1
 
@@ -12,7 +12,7 @@
 
 #SBATCH --cpus-per-task=3
 
-#SBATCH --time=05:00:00                     # Max runtime (HH:MM:SS)
+#SBATCH --time=24:00:00                     # Max runtime (HH:MM:SS)
 
 #SBATCH --hint=nomultithread
 
