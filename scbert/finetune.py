@@ -5,7 +5,6 @@ import argparse
 import json
 import random
 import math
-import random
 from functools import reduce
 import numpy as np
 import pandas as pd
@@ -21,28 +20,28 @@ from torch.utils.data import DataLoader, Dataset
 from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
-
 from performer_pytorch import PerformerLM
 import scanpy as sc
 import anndata as ad
 from utils import *
 import pickle as pkl
+from tqdm import tqdm
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--local_rank","--local-rank", type=int, default=-1, help='Local process rank.')
-parser.add_argument("--bin_num", type=int, default=5, help='Number of bins.')
-parser.add_argument("--gene_num", type=int, default=16906, help='Number of genes.')
-parser.add_argument("--epoch", type=int, default=3, help='Number of epochs.')
-parser.add_argument("--seed", type=int, default=2021, help='Random seed.')
-parser.add_argument("--batch_size", type=int, default=4, help='Number of batch size.')
-parser.add_argument("--learning_rate", type=float, default=1e-4, help='Learning rate.')
-parser.add_argument("--grad_acc", type=int, default=60, help='Number of gradient accumulation.')
-parser.add_argument("--valid_every", type=int, default=1, help='Number of training epochs between twice validation.')
-parser.add_argument("--pos_embed", type=bool, default=True, help='Using Gene2vec encoding or not.')
-parser.add_argument("--data_path", type=str, default='./data/Zheng68K.h5ad', help='Path of data for finetune.')
-parser.add_argument("--model_path", type=str, default='./panglao_pretrained.pth', help='Path of pretrained model.')
-parser.add_argument("--ckpt_dir", type=str, default='./ckpts/', help='Directory of checkpoint to save.')
-parser.add_argument("--model_name", type=str, default='finetune', help='Finetuned model name.')
+parser.add_argument("--local_rank", "--local-rank", type=int, default=-1)
+parser.add_argument("--bin_num", type=int, default=5)
+parser.add_argument("--gene_num", type=int, default=16906)
+parser.add_argument("--epoch", type=int, default=3)
+parser.add_argument("--seed", type=int, default=2021)
+parser.add_argument("--batch_size", type=int, default=4)
+parser.add_argument("--learning_rate", type=float, default=1e-4)
+parser.add_argument("--grad_acc", type=int, default=60)
+parser.add_argument("--valid_every", type=int, default=1)
+parser.add_argument("--pos_embed", type=bool, default=True)
+parser.add_argument("--data_path", type=str, default='./data/Zheng68K.h5ad')
+parser.add_argument("--model_path", type=str, default='./panglao_pretrained.pth')
+parser.add_argument("--ckpt_dir", type=str, default='./ckpts/')
+parser.add_argument("--model_name", type=str, default='finetune')
 
 args = parser.parse_args()
 rank = int(os.environ["RANK"])
@@ -73,7 +72,6 @@ world_size = torch.distributed.get_world_size()
 
 seed_all(SEED + torch.distributed.get_rank())
 
-
 class SCDataset(Dataset):
     def __init__(self, data, label):
         super().__init__()
@@ -91,7 +89,6 @@ class SCDataset(Dataset):
 
     def __len__(self):
         return self.data.shape[0]
-
 
 class Identity(nn.Module):
     def __init__(self, dropout=0., h_dim=100, out_dim=10):
@@ -116,17 +113,21 @@ class Identity(nn.Module):
             self._printed = True
         return x
 
-data = sc.read_h5ad(args.data_path)
-label_dict, label = np.unique(np.array(data.obs['celltype']), return_inverse=True)  # Convert strings categorical to integrate categorical, and label_dict[label] can be restored
-#store the label dict and label for prediction
-with open('label_dict', 'wb') as fp:
-    pkl.dump(label_dict, fp)
-with open('label', 'wb') as fp:
-    pkl.dump(label, fp)
-class_num = np.unique(label, return_counts=True)[1].tolist()
-class_weight = torch.tensor([(1 - (x / sum(class_num))) ** 2 for x in class_num])
-label = torch.from_numpy(label)
-data = data.X
+try:
+    print("Loading data...")
+    data = sc.read_h5ad(args.data_path)
+    label_dict, label = np.unique(np.array(data.obs['celltype']), return_inverse=True)
+    with open('label_dict', 'wb') as fp:
+        pkl.dump(label_dict, fp)
+    with open('label', 'wb') as fp:
+        pkl.dump(label, fp)
+    class_num = np.unique(label, return_counts=True)[1].tolist()
+    class_weight = torch.tensor([(1 - (x / sum(class_num))) ** 2 for x in class_num])
+    label = torch.from_numpy(label)
+    data = data.X
+except Exception as e:
+    print(f"[ERROR] Data loading failed: {e}")
+    exit(1)
 
 acc = []
 f1 = []
@@ -147,29 +148,35 @@ train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, sampler=train_sa
 val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, sampler=val_sampler)
 
 model = PerformerLM(
-    num_tokens = CLASS,
-    dim = 200,
-    depth = 6,
-    max_seq_len = SEQ_LEN,
-    heads = 10,
-    local_attn_heads = 0,
-    g2v_position_emb = POS_EMBED_USING
+    num_tokens=CLASS,
+    dim=200,
+    depth=6,
+    max_seq_len=SEQ_LEN,
+    heads=10,
+    local_attn_heads=0,
+    g2v_position_emb=POS_EMBED_USING
 )
 
-path = args.model_path
-ckpt = torch.load(path)
-model.load_state_dict(ckpt['model_state_dict'])
+try:
+    print("Loading pretrained PerformerLM model...")
+    path = args.model_path
+    ckpt = torch.load(path, map_location='cpu')
+    model.load_state_dict(ckpt['model_state_dict'])
+except Exception as e:
+    print(f"[ERROR] Model loading failed: {e}")
+    exit(1)
+
 for param in model.parameters():
     param.requires_grad = False
 for param in model.norm.parameters():
     param.requires_grad = True
 for param in model.performer.net.layers[-2].parameters():
     param.requires_grad = True
+
 model.to_out = Identity(dropout=0., h_dim=128, out_dim=label_dict.shape[0])
 model = model.to(device)
 model = DDP(model, device_ids=[local_rank], output_device=local_rank)
 
-# optimizer
 optimizer = Adam(model.parameters(), lr=LEARNING_RATE)
 scheduler = CosineAnnealingWarmupRestarts(
     optimizer,
@@ -185,40 +192,45 @@ loss_fn = nn.CrossEntropyLoss(weight=None).to(local_rank)
 dist.barrier()
 trigger_times = 0
 max_acc = 0.0
-for i in range(1, EPOCHS+1):
+
+for i in range(1, EPOCHS + 1):
     train_loader.sampler.set_epoch(i)
     model.train()
     dist.barrier()
     running_loss = 0.0
     cum_acc = 0.0
-    for index, (data, labels) in enumerate(train_loader):
-        index += 1
-        data, labels = data.to(device), labels.to(device)
-        if index % GRADIENT_ACCUMULATION != 0:
-            with model.no_sync():
+    try:
+        for index, (data, labels) in enumerate(tqdm(train_loader, desc=f"Epoch {i} - Training")):
+            index += 1
+            data, labels = data.to(device), labels.to(device)
+            if index % GRADIENT_ACCUMULATION != 0:
+                with model.no_sync():
+                    logits = model(data)
+                    loss = loss_fn(logits, labels)
+                    loss.backward()
+            if index % GRADIENT_ACCUMULATION == 0:
                 logits = model(data)
                 loss = loss_fn(logits, labels)
                 loss.backward()
-        if index % GRADIENT_ACCUMULATION == 0:
-            logits = model(data)
-            loss = loss_fn(logits, labels)
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), int(1e6))
-            optimizer.step()
-            optimizer.zero_grad()
-        running_loss += loss.item()
-        softmax = nn.Softmax(dim=-1)
-        final = softmax(logits)
-        final = final.argmax(dim=-1)
-        pred_num = labels.size(0)
-        correct_num = torch.eq(final, labels).sum(dim=-1)
-        cum_acc += torch.true_divide(correct_num, pred_num).mean().item()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), int(1e6))
+                optimizer.step()
+                optimizer.zero_grad()
+            running_loss += loss.item()
+            softmax = nn.Softmax(dim=-1)
+            final = softmax(logits).argmax(dim=-1)
+            pred_num = labels.size(0)
+            correct_num = torch.eq(final, labels).sum(dim=-1)
+            cum_acc += torch.true_divide(correct_num, pred_num).mean().item()
+    except Exception as e:
+        print(f"[ERROR] Training failed at epoch {i}: {e}")
+        continue
+
     epoch_loss = running_loss / index
     epoch_acc = 100 * cum_acc / index
     epoch_loss = get_reduced(epoch_loss, local_rank, 0, world_size)
     epoch_acc = get_reduced(epoch_acc, local_rank, 0, world_size)
     if is_master:
-        print(f'    ==  Epoch: {i} | Training Loss: {epoch_loss:.6f} | Accuracy: {epoch_acc:6.4f}%  ==')
+        print(f'==  Epoch: {i} | Training Loss: {epoch_loss:.6f} | Accuracy: {epoch_acc:6.4f}%  ==')
     dist.barrier()
     scheduler.step()
 
@@ -229,7 +241,7 @@ for i in range(1, EPOCHS+1):
         predictions = []
         truths = []
         with torch.no_grad():
-            for index, (data_v, labels_v) in enumerate(val_loader):
+            for index, (data_v, labels_v) in enumerate(tqdm(val_loader, desc=f"Epoch {i} - Validation")):
                 index += 1
                 data_v, labels_v = data_v.to(device), labels_v.to(device)
                 logits = model(data_v)
@@ -241,27 +253,27 @@ for i in range(1, EPOCHS+1):
                 final[np.amax(np.array(final_prob.cpu()), axis=-1) < UNASSIGN_THRES] = -1
                 predictions.append(final)
                 truths.append(labels_v)
-            del data_v, labels_v, logits, final_prob, final
-            # gather
-            predictions = distributed_concat(torch.cat(predictions, dim=0), len(val_sampler.dataset), world_size)
-            truths = distributed_concat(torch.cat(truths, dim=0), len(val_sampler.dataset), world_size)
-            no_drop = predictions != -1
-            predictions = np.array((predictions[no_drop]).cpu())
-            truths = np.array((truths[no_drop]).cpu())
-            cur_acc = accuracy_score(truths, predictions)
-            f1 = f1_score(truths, predictions, average='macro')
-            val_loss = running_loss / index
-            val_loss = get_reduced(val_loss, local_rank, 0, world_size)
-            if is_master:
-                print(f'    ==  Epoch: {i} | Validation Loss: {val_loss:.6f} | F1 Score: {f1:.6f}  ==')
-                print(confusion_matrix(truths, predictions))
-                print(classification_report(truths, predictions, target_names=label_dict.tolist(), digits=4))
-            if cur_acc > max_acc:
-                max_acc = cur_acc
-                trigger_times = 0
-                save_best_ckpt(i, model, optimizer, scheduler, val_loss, model_name, ckpt_dir)
-            else:
-                trigger_times += 1
-                if trigger_times > PATIENCE:
-                    break
-    del predictions, truths
+
+        predictions = distributed_concat(torch.cat(predictions, dim=0), len(val_sampler.dataset), world_size)
+        truths = distributed_concat(torch.cat(truths, dim=0), len(val_sampler.dataset), world_size)
+        no_drop = predictions != -1
+        predictions = np.array((predictions[no_drop]).cpu())
+        truths = np.array((truths[no_drop]).cpu())
+        cur_acc = accuracy_score(truths, predictions)
+        f1 = f1_score(truths, predictions, average='macro')
+        val_loss = running_loss / index
+        val_loss = get_reduced(val_loss, local_rank, 0, world_size)
+        if is_master:
+            print(f'==  Epoch: {i} | Validation Loss: {val_loss:.6f} | F1 Score: {f1:.6f}  ==')
+            print(confusion_matrix(truths, predictions))
+            print(classification_report(truths, predictions, target_names=label_dict.tolist(), digits=4))
+        if cur_acc > max_acc:
+            max_acc = cur_acc
+            trigger_times = 0
+            save_best_ckpt(i, model, optimizer, scheduler, val_loss, model_name, ckpt_dir)
+        else:
+            trigger_times += 1
+            if trigger_times > PATIENCE:
+                break
+
+        del predictions, truths
