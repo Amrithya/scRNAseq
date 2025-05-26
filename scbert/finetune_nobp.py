@@ -262,7 +262,7 @@ try:
                 if trigger_times > PATIENCE:
                     print(f"[Early Stop] Triggered at Epoch {i}")
                 break
-                del predictions, truths
+            del predictions, truths
 
         else:
             dist.barrier()
