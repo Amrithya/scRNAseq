@@ -72,6 +72,9 @@ world_size = torch.distributed.get_world_size()
 
 seed_all(SEED + torch.distributed.get_rank())
 
+print(f"[Init] Seed: {SEED}, Epochs: {EPOCHS}, Batch size: {BATCH_SIZE}, LR: {LEARNING_RATE}")
+print(f"[Init] Using {world_size} GPUs, local_rank: {local_rank}")
+
 class SCDataset(Dataset):
     def __init__(self, data, label):
         super().__init__()
