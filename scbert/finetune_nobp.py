@@ -16,6 +16,33 @@ import random
 from utils import save_best_ckpt
 from tqdm import tqdm
 
+
+def get_reduced(tensor, current_device, dest_device, world_size):
+    tensor = tensor.clone().detach() if torch.is_tensor(tensor) else torch.tensor(tensor)
+    tensor = tensor.to(current_device)
+    dist.reduce(tensor, dst=dest_device)
+    if dist.get_rank() == dest_device:
+        return tensor.item() / world_size
+    else:
+        return None
+
+def distributed_concat(tensor, num_total_examples, world_size):
+    local_size = torch.tensor([tensor.shape[0]], device=tensor.device)
+    size_list = [torch.zeros_like(local_size) for _ in range(world_size)]
+    dist.all_gather(size_list, local_size)
+
+    max_size = max([sz.item() for sz in size_list])
+    padded_tensor = torch.cat([
+        tensor,
+        torch.zeros((max_size - tensor.shape[0], *tensor.shape[1:]), device=tensor.device)
+    ], dim=0)
+
+    output_tensors = [torch.zeros_like(padded_tensor) for _ in range(world_size)]
+    dist.all_gather(output_tensors, padded_tensor)
+
+    concat = torch.cat([out[:size.item()] for out, size in zip(output_tensors, size_list)], dim=0)
+    return concat[:num_total_examples]
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--local_rank", "--local-rank", type=int, default=-1)
 parser.add_argument("--bin_num", type=int, default=5)
@@ -161,31 +188,6 @@ dist.barrier()
 trigger_times = 0
 max_acc = 0.0
 
-def get_reduced(tensor, current_device, dest_device, world_size):
-    tensor = tensor.clone().detach() if torch.is_tensor(tensor) else torch.tensor(tensor)
-    tensor = tensor.to(current_device)
-    dist.reduce(tensor, dst=dest_device)
-    if dist.get_rank() == dest_device:
-        return tensor.item() / world_size
-    else:
-        return None
-
-def distributed_concat(tensor, num_total_examples, world_size):
-    local_size = torch.tensor([tensor.shape[0]], device=tensor.device)
-    size_list = [torch.zeros_like(local_size) for _ in range(world_size)]
-    dist.all_gather(size_list, local_size)
-
-    max_size = max([sz.item() for sz in size_list])
-    padded_tensor = torch.cat([
-        tensor,
-        torch.zeros((max_size - tensor.shape[0], *tensor.shape[1:]), device=tensor.device)
-    ], dim=0)
-
-    output_tensors = [torch.zeros_like(padded_tensor) for _ in range(world_size)]
-    dist.all_gather(output_tensors, padded_tensor)
-
-    concat = torch.cat([out[:size.item()] for out, size in zip(output_tensors, size_list)], dim=0)
-    return concat[:num_total_examples]
 
 try:
     for i in range(1, EPOCHS + 1):
@@ -262,7 +264,9 @@ try:
                         softmax = nn.Softmax(dim=-1)
                         final_prob = softmax(logits)
                         final = final_prob.argmax(dim=-1)
-                        final[np.amax(np.array(final_prob.cpu()), axis=-1) < UNASSIGN_THRES] = -1
+                        prob_np = final_prob.cpu().numpy()
+                        mask = np.amax(prob_np, axis=-1) < UNASSIGN_THRES
+                        final[torch.tensor(mask, device=final.device)] = -1
                         predictions.append(final)
                         truths.append(labels_v)
                     except Exception as e:
