@@ -2,7 +2,6 @@
 
 #SBATCH --job-name="besteffort_finetune"
 #SBATCH --partition=besteffort
-#SBATCH --nodelist=lisnode3
 #SBATCH --gres=gpu:4
 #SBATCH --ntasks=4
 #SBATCH --cpus-per-task=3
