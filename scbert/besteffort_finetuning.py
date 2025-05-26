@@ -22,7 +22,7 @@ from tqdm import tqdm
 parser = argparse.ArgumentParser()
 parser.add_argument("--bin_num", type=int, default=5)
 parser.add_argument("--gene_num", type=int, default=16906)
-parser.add_argument("--epoch", type=int, default=5)
+parser.add_argument("--epoch", type=int, default=3)
 parser.add_argument("--seed", type=int, default=2021)
 parser.add_argument("--batch_size", type=int, default=8)
 parser.add_argument("--learning_rate", type=float, default=1e-4)
@@ -103,6 +103,18 @@ class Identity(nn.Module):
         x = self.act1(x)
         return x
 
+def save_checkpoint(epoch, model, optimizer, loss, name, path):
+    if isinstance(model, DDP):
+        model_state_dict = model.module.state_dict()
+    else:
+        model_state_dict = model.state_dict()
+    torch.save({
+        'epoch': epoch,
+        'model_state_dict': model_state_dict,
+        'optimizer_state_dict': optimizer.state_dict(),
+        'loss': loss
+    }, os.path.join(path, f"{name}_checkpoint.pth"))
+
 data = sc.read_h5ad(args.data_path)
 label_dict, label = np.unique(data.obs['celltype'], return_inverse=True)
 label = torch.from_numpy(label)
@@ -145,6 +157,19 @@ model = DDP(model, device_ids=[local_rank], output_device=local_rank)
 criterion = nn.CrossEntropyLoss().to(device)
 optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=LEARNING_RATE)
 
+start_epoch = 1
+ckpt_path = os.path.join(args.ckpt_dir, f"{args.model_name}_checkpoint.pth")
+if os.path.exists(ckpt_path):
+    if is_master:
+        print(f"[Resuming] Loading checkpoint from {ckpt_path}")
+    map_location = {'cuda:%d' % 0: 'cuda:%d' % local_rank}
+    checkpoint = torch.load(ckpt_path, map_location=map_location)
+    model.module.load_state_dict(checkpoint['model_state_dict'])
+    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    start_epoch = checkpoint['epoch'] + 1
+    if is_master:
+        print(f"[Resuming] Resuming from epoch {start_epoch}")
+
 train_sampler = DistributedSampler(train_dataset)
 train_loader = DataLoader(train_dataset, batch_size=args.batch_size, sampler=train_sampler, num_workers=0, pin_memory=True)
 val_sampler = DistributedSampler(val_dataset)
@@ -156,7 +181,7 @@ max_acc = 0.0
 trigger_times = 0
 
 try:
-    for epoch in range(1, args.epoch + 1):
+    for epoch in range(start_epoch, args.epoch + 1):
         train_loader.sampler.set_epoch(epoch)
         model.train()
         dist.barrier()
@@ -248,7 +273,7 @@ try:
                 if acc > max_acc:
                     max_acc = acc
                     trigger_times = 0
-                    save_best_ckpt(epoch, model, optimizer, val_loss, args.model_name, args.ckpt_dir)
+                    save_checkpoint(epoch, model, optimizer, val_loss, args.model_name, args.ckpt_dir)
                     print(f"[Epoch {epoch}] New best model saved with acc = {acc:.4f}")
                 else:
                     trigger_times += 1
