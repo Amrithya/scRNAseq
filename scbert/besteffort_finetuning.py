@@ -60,18 +60,17 @@ device = torch.device(local_rank)
 world_size = dist.get_world_size()
 is_master = local_rank == 0
 
-local_rank = int(os.environ.get("LOCAL_RANK", -1))
 rank = int(os.environ.get("RANK", -1))
+local_rank = int(os.environ.get("LOCAL_RANK", -1))
 world_size = int(os.environ.get("WORLD_SIZE", -1))
 
-print(f"[Rank {rank}] Host: {socket.gethostname()} | LOCAL_RANK: {local_rank} | CUDA_VISIBLE_DEVICES: {os.environ.get('CUDA_VISIBLE_DEVICES')}")
+print(f"[Rank {rank}] Host: {socket.gethostname()} | LOCAL_RANK: {local_rank} | WORLD_SIZE: {world_size}")
 
-torch.cuda.set_device(local_rank)
-print(f"[Rank {rank}] Set device to: {torch.cuda.current_device()} - {torch.cuda.get_device_name(torch.cuda.current_device())}")
-
-
-print(f"[Rank {local_rank}] CUDA_VISIBLE_DEVICES: {os.environ.get('CUDA_VISIBLE_DEVICES', 'Not Set')}")
-
+try:
+    torch.cuda.set_device(local_rank)
+    print(f"[Rank {rank}] Set device to: {torch.cuda.current_device()} - {torch.cuda.get_device_name(torch.cuda.current_device())}")
+except Exception as e:
+    print(f"[Rank {rank}] Failed to set device: {e}")
 
 CLASS = args.bin_num + 2
 SEQ_LEN = args.gene_num + 1
