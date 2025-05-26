@@ -60,6 +60,16 @@ device = torch.device(local_rank)
 world_size = dist.get_world_size()
 is_master = local_rank == 0
 
+local_rank = int(os.environ.get("LOCAL_RANK", -1))
+rank = int(os.environ.get("RANK", -1))
+world_size = int(os.environ.get("WORLD_SIZE", -1))
+
+print(f"[Rank {rank}] Host: {socket.gethostname()} | LOCAL_RANK: {local_rank} | CUDA_VISIBLE_DEVICES: {os.environ.get('CUDA_VISIBLE_DEVICES')}")
+
+torch.cuda.set_device(local_rank)
+print(f"[Rank {rank}] Set device to: {torch.cuda.current_device()} - {torch.cuda.get_device_name(torch.cuda.current_device())}")
+
+
 print(f"[Rank {local_rank}] CUDA_VISIBLE_DEVICES: {os.environ.get('CUDA_VISIBLE_DEVICES', 'Not Set')}")
 
 
