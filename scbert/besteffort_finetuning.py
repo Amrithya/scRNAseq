@@ -56,7 +56,7 @@ if local_rank == -1:
 
 dist.init_process_group(backend='nccl')
 torch.cuda.set_device(local_rank)
-device = torch.device(f"cuda:{local_rank}")
+device = torch.device(local_rank)
 world_size = dist.get_world_size()
 is_master = local_rank == 0
 
