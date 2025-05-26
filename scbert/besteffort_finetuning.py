@@ -60,6 +60,9 @@ device = torch.device(local_rank)
 world_size = dist.get_world_size()
 is_master = local_rank == 0
 
+print(f"[Rank {local_rank}] CUDA_VISIBLE_DEVICES: {os.environ.get('CUDA_VISIBLE_DEVICES', 'Not Set')}")
+
+
 CLASS = args.bin_num + 2
 SEQ_LEN = args.gene_num + 1
 
