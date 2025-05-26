@@ -13,8 +13,11 @@ from performer_pytorch import PerformerLM
 from utils import *
 import scanpy as sc
 from sklearn.model_selection import StratifiedShuffleSplit
-from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, classification_report
+from sklearn.metrics import accuracy_score, f1_score
 import random
+import socket
+import traceback
+from tqdm import tqdm
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--bin_num", type=int, default=5)
@@ -53,7 +56,6 @@ local_rank = int(os.environ.get("LOCAL_RANK", -1))
 if local_rank == -1:
     raise ValueError("LOCAL_RANK env var missing")
 
-print("cuda device count",torch.cuda.device_count())
 dist.init_process_group(backend='nccl')
 torch.cuda.set_device(local_rank)
 device = torch.device(local_rank)
@@ -63,12 +65,9 @@ is_master = local_rank == 0
 rank = int(os.environ.get("RANK", -1))
 local_rank = int(os.environ.get("LOCAL_RANK", -1))
 world_size = int(os.environ.get("WORLD_SIZE", -1))
-print(f"[Rank {local_rank}] sees {torch.cuda.device_count()} GPUs")
-print(f"[Rank {rank}] Host: {socket.gethostname()} | LOCAL_RANK: {local_rank} | WORLD_SIZE: {world_size}")
 
 try:
     torch.cuda.set_device(local_rank)
-    print(f"[Rank {rank}] Set device to: {torch.cuda.current_device()} - {torch.cuda.get_device_name(torch.cuda.current_device())}")
 except Exception as e:
     print(f"[Rank {rank}] Failed to set device: {e}")
 
@@ -95,7 +94,6 @@ class Identity(nn.Module):
         self.act = nn.ReLU()
         self.fc1 = nn.Linear(SEQ_LEN, out_dim)
         self.act1 = nn.ReLU()
-        self._printed = False
     def forward(self, x):
         x = x[:, None, :, :]
         x = self.conv1(x)
@@ -149,96 +147,125 @@ optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters(
 
 train_sampler = DistributedSampler(train_dataset)
 train_loader = DataLoader(train_dataset, batch_size=args.batch_size, sampler=train_sampler, num_workers=0, pin_memory=True)
-
 val_sampler = DistributedSampler(val_dataset)
 val_loader = DataLoader(val_dataset, batch_size=args.batch_size, sampler=val_sampler, num_workers=0, pin_memory=True)
 
 dist.barrier()
-trigger_times = 0
+
 max_acc = 0.0
+trigger_times = 0
 
-for i in range(1, EPOCHS+1):
-    train_loader.sampler.set_epoch(i)
-    model.train()
-    dist.barrier()
-
-    running_loss = 0.0
-    cum_acc = 0.0
-    for index, (data, labels) in enumerate(train_loader):
-        index += 1
-        data, labels = data.to(device), labels.to(device)
-
-        if index % GRADIENT_ACCUMULATION != 0:
-            with model.no_sync():
-                logits = model(data)
-                loss = criterion(logits, labels)
-                loss.backward()
-        else:
-            logits = model(data)
-            loss = criterion(logits, labels)
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), int(1e6))
-            optimizer.step()
-            optimizer.zero_grad()
-
-        running_loss += loss.item()
-        softmax = nn.Softmax(dim=-1)
-        final = softmax(logits).argmax(dim=-1)
-        pred_num = labels.size(0)
-        correct_num = torch.eq(final, labels).sum().item()
-        cum_acc += correct_num / pred_num
-
-    epoch_loss = running_loss / index
-    epoch_acc = 100 * cum_acc / index
-    epoch_loss = get_reduced(epoch_loss, local_rank, 0, world_size)
-    epoch_acc = get_reduced(epoch_acc, local_rank, 0, world_size)
-
-    if i % VALIDATE_EVERY == 0:
-        model.eval()
+try:
+    for epoch in range(1, args.epoch + 1):
+        train_loader.sampler.set_epoch(epoch)
+        model.train()
         dist.barrier()
-
-        running_loss = 0.0
-        predictions, truths = [], []
-
-        with torch.no_grad():
-            for index, (data_v, labels_v) in enumerate(val_loader):
-                data_v, labels_v = data_v.to(device), labels_v.to(device)
-                logits = model(data_v)
-                loss = criterion(logits, labels_v)
-                running_loss += loss.item()
-
-                softmax = nn.Softmax(dim=-1)
-                final_prob = softmax(logits)
-                final = final_prob.argmax(dim=-1)
-                max_probs, _ = final_prob.max(dim=-1)
-                mask = max_probs < UNASSIGN_THRES
-                final[mask] = -1
-                predictions.append(final.cpu())
-                truths.append(labels_v.cpu())
-        predictions_tensor = torch.cat(predictions, dim=0).to(device) 
-        truths_tensor = torch.cat(truths, dim=0).to(device)
-
-        predictions = distributed_concat(predictions_tensor, len(val_sampler.dataset), world_size)
-        truths = distributed_concat(truths_tensor, len(val_sampler.dataset), world_size)
-
 
         if is_master:
-            no_drop = predictions != -1
-            predictions = np.array((predictions[no_drop]).cpu())
-            truths = np.array((truths[no_drop]).cpu())
+            print(f"\n[Epoch {epoch}] Training started")
 
-            cur_acc = accuracy_score(truths, predictions)
-            f1 = f1_score(truths, predictions, average='macro')
-            val_loss = running_loss / index
-            val_loss = get_reduced(val_loss, local_rank, 0, world_size)
+        running_loss = 0.0
+        cum_acc = 0.0
 
-            if cur_acc > max_acc:
-                max_acc = cur_acc
-                trigger_times = 0
-                save_best_ckpt(i, model, optimizer, val_loss, model_name, ckpt_dir)
-            else:
-                trigger_times += 1
-                if trigger_times > PATIENCE:
-                    break
+        data_iter = tqdm(train_loader, desc=f"[Epoch {epoch}] Training", disable=not is_master)
 
-        dist.barrier()
+        for step, (data, labels) in enumerate(data_iter, 1):
+            data, labels = data.to(device), labels.to(device)
+
+            try:
+                if step % args.grad_acc != 0:
+                    with model.no_sync():
+                        logits = model(data)
+                        loss = criterion(logits, labels)
+                        loss.backward()
+                else:
+                    logits = model(data)
+                    loss = criterion(logits, labels)
+                    loss.backward()
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), 1e6)
+                    optimizer.step()
+                    optimizer.zero_grad()
+            except Exception as e:
+                print(f"[Rank {rank}] Error during backprop at step {step}: {e}")
+                traceback.print_exc()
+                continue
+
+            running_loss += loss.item()
+            preds = torch.softmax(logits, dim=-1).argmax(dim=-1)
+            cum_acc += (preds == labels).sum().item() / labels.size(0)
+
+        avg_loss = get_reduced(running_loss / step, local_rank, 0, world_size)
+        avg_acc = get_reduced(100 * cum_acc / step, local_rank, 0, world_size)
+
+        if is_master:
+            print(f"[Epoch {epoch}] Train Loss: {avg_loss:.4f} | Accuracy: {avg_acc:.2f}%")
+
+        if epoch % args.valid_every == 0:
+            model.eval()
+            dist.barrier()
+
+            running_loss = 0.0
+            predictions, truths = [], []
+
+            val_iter = tqdm(val_loader, desc=f"[Epoch {epoch}] Validation", disable=not is_master)
+
+            with torch.no_grad():
+                for step, (data_v, labels_v) in enumerate(val_iter, 1):
+                    data_v, labels_v = data_v.to(device), labels_v.to(device)
+
+                    try:
+                        logits = model(data_v)
+                        loss = criterion(logits, labels_v)
+                    except Exception as e:
+                        print(f"[Rank {rank}] Error during validation at step {step}: {e}")
+                        traceback.print_exc()
+                        continue
+
+                    running_loss += loss.item()
+
+                    prob = torch.softmax(logits, dim=-1)
+                    final = prob.argmax(dim=-1)
+                    max_probs, _ = prob.max(dim=-1)
+                    final[max_probs < UNASSIGN_THRES] = -1
+
+                    predictions.append(final.cpu())
+                    truths.append(labels_v.cpu())
+
+            predictions = distributed_concat(torch.cat(predictions), len(val_dataset), world_size)
+            truths = distributed_concat(torch.cat(truths), len(val_dataset), world_size)
+
+            if is_master:
+                mask = predictions != -1
+                filtered_preds = predictions[mask].cpu().numpy()
+                filtered_truths = truths[mask].cpu().numpy()
+
+                acc = accuracy_score(filtered_truths, filtered_preds)
+                f1 = f1_score(filtered_truths, filtered_preds, average='macro')
+                val_loss = get_reduced(running_loss / step, local_rank, 0, world_size)
+
+                print(f"[Epoch {epoch}] Validation Loss: {val_loss:.4f} | Accuracy: {acc:.4f} | F1: {f1:.4f}")
+
+                if acc > max_acc:
+                    max_acc = acc
+                    trigger_times = 0
+                    save_best_ckpt(epoch, model, optimizer, val_loss, args.model_name, args.ckpt_dir)
+                    print(f"[Epoch {epoch}] New best model saved with acc = {acc:.4f}")
+                else:
+                    trigger_times += 1
+                    print(f"[Epoch {epoch}] No improvement. Trigger times: {trigger_times}/{PATIENCE}")
+                    if trigger_times > PATIENCE:
+                        print("[Early Stop] Trigger patience reached.")
+                        break
+
+            dist.barrier()
+
+except KeyboardInterrupt:
+    if is_master:
+        print("[Interrupted] Training manually stopped.")
+except Exception as e:
+    print(f"[Rank {rank}] Unhandled exception during training: {e}")
+    traceback.print_exc()
+finally:
+    dist.destroy_process_group()
+    if is_master:
+        print("DDP training process finished.")
