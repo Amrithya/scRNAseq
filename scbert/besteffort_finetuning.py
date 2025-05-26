@@ -46,7 +46,7 @@ SEQ_LEN = args.gene_num + 1
 VALIDATE_EVERY = args.valid_every
 UNASSIGN_THRES = 0.0
 PATIENCE = 10
-
+print("################################",torch.cuda.device_count())
 model_name = args.model_name
 ckpt_dir = args.ckpt_dir
 
