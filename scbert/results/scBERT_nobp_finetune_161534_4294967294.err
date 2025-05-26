@@ -26,3 +26,4 @@ Q, R = torch.linalg.qr(A, 'reduced' if some else 'complete') (Triggered internal
   q, r = torch.qr(unstructured_block.cpu(), some = True)
 /baie/data1/data/expes/amrithya.balaji/scRNAseq/scbert/finetune_nobp.py:227: DeprecationWarning: __array__ implementation doesn't accept a copy keyword, so passing copy=False failed. __array__ must implement 'dtype' and 'copy' keyword arguments. To learn more, see the migration guide https://numpy.org/devdocs/numpy_2_0_migration_guide.html#adapting-to-changes-in-the-copy-keyword
   final[np.amax(np.array(final_prob.cpu()), axis=-1) < UNASSIGN_THRES] = -1
+slurmstepd: error: *** JOB 161534 ON lisnode4 CANCELLED AT 2025-05-23T22:03:03 ***
