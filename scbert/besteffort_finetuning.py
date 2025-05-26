@@ -7,6 +7,8 @@ import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
+
+import torch.utils.benchmark as benchmark
 import torch.distributed as dist
 from performer_pytorch import PerformerLM
 from utils import *
@@ -215,26 +217,29 @@ for i in range(1, EPOCHS+1):
     if i % VALIDATE_EVERY == 0:
         model.eval()
         dist.barrier()
-        if is_master:
-            print("[Validation] Starting validation...")
-            running_loss = 0.0
-            predictions, truths = [], []
-            with torch.no_grad():
-                for index, (data_v, labels_v) in enumerate(val_loader):
-                    index += 1
-                    data_v, labels_v = data_v.to(device), labels_v.to(device)
-                    logits = model(data_v)
-                    loss = criterion(logits, labels_v)
-                    running_loss += loss.item()
-                    softmax = nn.Softmax(dim=-1)
-                    final_prob = softmax(logits)
-                    final = final_prob.argmax(dim=-1)
-                    final[np.amax(np.array(final_prob.cpu()), axis=-1) < UNASSIGN_THRES] = -1
-                    predictions.append(final)
-                    truths.append(labels_v)
 
-            predictions = distributed_concat(torch.cat(predictions, dim=0), len(val_sampler.dataset), world_size)
-            truths = distributed_concat(torch.cat(truths, dim=0), len(val_sampler.dataset), world_size)
+        running_loss = 0.0
+        predictions, truths = [], []
+
+        with torch.no_grad():
+            for index, (data_v, labels_v) in enumerate(val_loader):
+                data_v, labels_v = data_v.to(device), labels_v.to(device)
+                logits = model(data_v)
+                loss = criterion(logits, labels_v)
+                running_loss += loss.item()
+
+                softmax = nn.Softmax(dim=-1)
+                final_prob = softmax(logits)
+                final = final_prob.argmax(dim=-1)
+                max_probs, _ = final_prob.max(dim=-1)
+                mask = max_probs < UNASSIGN_THRES
+                final[mask] = -1
+                predictions.append(final.cpu())
+                truths.append(labels_v.cpu())
+        predictions = distributed_concat(torch.cat(predictions, dim=0), len(val_sampler.dataset), world_size)
+        truths = distributed_concat(torch.cat(truths, dim=0), len(val_sampler.dataset), world_size)
+
+        if is_master:
             no_drop = predictions != -1
             predictions = np.array((predictions[no_drop]).cpu())
             truths = np.array((truths[no_drop]).cpu())
@@ -258,6 +263,5 @@ for i in range(1, EPOCHS+1):
                 if trigger_times > PATIENCE:
                     print(f"[Early Stop] Triggered at Epoch {i}")
                     break
-            del predictions, truths
-        else:
-            dist.barrier()
+
+        dist.barrier()

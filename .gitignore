@@ -175,3 +175,6 @@ cython_debug/
 
 # Large files
 *.h5ad
+*.pth
+*.out
+*.err
