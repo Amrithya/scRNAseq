@@ -215,7 +215,7 @@ for i in range(1, EPOCHS+1):
                 final[mask] = -1
                 predictions.append(final.cpu())
                 truths.append(labels_v.cpu())
-        predictions_tensor = torch.cat(predictions, dim=0).to(device)  # Ensure CUDA
+        predictions_tensor = torch.cat(predictions, dim=0).to(device) 
         truths_tensor = torch.cat(truths, dim=0).to(device)
 
         predictions = distributed_concat(predictions_tensor, len(val_sampler.dataset), world_size)
