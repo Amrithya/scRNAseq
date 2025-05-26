@@ -46,13 +46,13 @@ SEQ_LEN = args.gene_num + 1
 VALIDATE_EVERY = args.valid_every
 UNASSIGN_THRES = 0.0
 PATIENCE = 10
-print("################################",torch.cuda.device_count())
 model_name = args.model_name
 ckpt_dir = args.ckpt_dir
 
 local_rank = int(os.environ.get("LOCAL_RANK", -1))
 if local_rank == -1:
     raise ValueError("LOCAL_RANK env var missing")
+
 
 dist.init_process_group(backend='nccl')
 torch.cuda.set_device(local_rank)
@@ -63,7 +63,7 @@ is_master = local_rank == 0
 rank = int(os.environ.get("RANK", -1))
 local_rank = int(os.environ.get("LOCAL_RANK", -1))
 world_size = int(os.environ.get("WORLD_SIZE", -1))
-
+print(f"[Rank {local_rank}] sees {torch.cuda.device_count()} GPUs")
 print(f"[Rank {rank}] Host: {socket.gethostname()} | LOCAL_RANK: {local_rank} | WORLD_SIZE: {world_size}")
 
 try:
