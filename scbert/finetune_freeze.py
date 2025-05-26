@@ -66,11 +66,6 @@ class Identity(nn.Module):
         self.act = nn.ReLU()
         self.fc1 = nn.Linear(SEQ_LEN, out_dim)
         self.act1 = nn.ReLU()
-        self.dropout1 = nn.Dropout(dropout)
-        self.fc2 = nn.Linear(512, h_dim)
-        self.act2 = nn.ReLU()
-        self.dropout2 = nn.Dropout(dropout)
-        self.fc3 = nn.Linear(h_dim, out_dim)
         self._printed = False
 
     def forward(self, x):
@@ -82,11 +77,6 @@ class Identity(nn.Module):
         x = x.view(x.shape[0], -1)
         x = self.fc1(x)
         x = self.act1(x)
-        #x = self.dropout1(x)
-        #x = self.fc2(x)
-        #x = self.act2(x)
-        #x = self.dropout2(x)
-        #x = self.fc3(x)
         if not self._printed:
             print(f"Shape after Identity: {x.shape}")
             self._printed = True

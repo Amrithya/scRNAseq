@@ -32,9 +32,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--local_rank","--local-rank", type=int, default=-1, help='Local process rank.')
 parser.add_argument("--bin_num", type=int, default=5, help='Number of bins.')
 parser.add_argument("--gene_num", type=int, default=16906, help='Number of genes.')
-parser.add_argument("--epoch", type=int, default=100, help='Number of epochs.')
+parser.add_argument("--epoch", type=int, default=3, help='Number of epochs.')
 parser.add_argument("--seed", type=int, default=2021, help='Random seed.')
-parser.add_argument("--batch_size", type=int, default=3, help='Number of batch size.')
+parser.add_argument("--batch_size", type=int, default=8, help='Number of batch size.')
 parser.add_argument("--learning_rate", type=float, default=1e-4, help='Learning rate.')
 parser.add_argument("--grad_acc", type=int, default=60, help='Number of gradient accumulation.')
 parser.add_argument("--valid_every", type=int, default=1, help='Number of training epochs between twice validation.')
@@ -93,31 +93,27 @@ class SCDataset(Dataset):
         return self.data.shape[0]
 
 
-class Identity(torch.nn.Module):
-    def __init__(self, dropout = 0., h_dim = 100, out_dim = 10):
-        super(Identity, self).__init__()
+class Identity(nn.Module):
+    def __init__(self, dropout=0., h_dim=100, out_dim=10):
+        super().__init__()
         self.conv1 = nn.Conv2d(1, 1, (1, 200))
         self.act = nn.ReLU()
-        self.fc1 = nn.Linear(in_features=SEQ_LEN, out_features=512, bias=True)
+        self.fc1 = nn.Linear(SEQ_LEN, out_dim)
         self.act1 = nn.ReLU()
-        self.dropout1 = nn.Dropout(dropout)
-        self.fc2 = nn.Linear(in_features=512, out_features=h_dim, bias=True)
-        self.act2 = nn.ReLU()
-        self.dropout2 = nn.Dropout(dropout)
-        self.fc3 = nn.Linear(in_features=h_dim, out_features=out_dim, bias=True)
+        self._printed = False
 
     def forward(self, x):
-        x = x[:,None,:,:]
+        if not self._printed:
+            print(f"Shape after Performer, before Identity: {x.shape}")
+        x = x[:, None, :, :]
         x = self.conv1(x)
         x = self.act(x)
-        x = x.view(x.shape[0],-1)
+        x = x.view(x.shape[0], -1)
         x = self.fc1(x)
         x = self.act1(x)
-        x = self.dropout1(x)
-        x = self.fc2(x)
-        x = self.act2(x)
-        x = self.dropout2(x)
-        x = self.fc3(x)
+        if not self._printed:
+            print(f"Shape after Identity: {x.shape}")
+            self._printed = True
         return x
 
 data = sc.read_h5ad(args.data_path)
