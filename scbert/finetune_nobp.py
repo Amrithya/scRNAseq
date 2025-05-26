@@ -55,6 +55,7 @@ try:
     is_master = local_rank == 0
 
     dist.init_process_group(backend='nccl')
+    print(f"[DDP] Process {local_rank} initialized out of {dist.get_world_size()} total.")
     torch.cuda.set_device(local_rank)
     device = torch.device("cuda", local_rank)
     world_size = torch.distributed.get_world_size()
@@ -73,8 +74,8 @@ try:
             full_seq[full_seq > (CLASS - 2)] = CLASS - 2
             full_seq = torch.from_numpy(full_seq).long()
             full_seq = torch.cat((full_seq, torch.tensor([0])))
-            if index < 3 and is_master:
-                print(f"[Dataset] idx {index}, sequence sample (first 10): {full_seq[:10]}, label: {self.label[index]}")
+            if index < 3:
+                print(f"[Rank {local_rank}] idx {index}, sequence sample (first 10): {full_seq[:10]}, label: {self.label[index]}")
             return full_seq, self.label[index]
         def __len__(self):
             return self.data.shape[0]
@@ -189,6 +190,7 @@ try:
                     torch.nn.utils.clip_grad_norm_(model.parameters(), int(1e6))
                     optimizer.step()
                     optimizer.zero_grad()
+                    dist.barrier()
                     if is_master and index % 100 == 0:
                         print(f"[Epoch {i}] Batch {index} step done, loss: {loss.item():.6f}")
 
@@ -206,15 +208,15 @@ try:
         epoch_acc = 100 * cum_acc / index
         epoch_loss = get_reduced(epoch_loss, local_rank, 0, world_size)
         epoch_acc = get_reduced(epoch_acc, local_rank, 0, world_size)
-
+        dist.barrier()
         if is_master:
             print(f'[Epoch {i}] Train Loss: {epoch_loss:.6f} | Train Accuracy: {epoch_acc:.2f}%')
         dist.barrier()
 
         if i % VALIDATE_EVERY == 0:
+            model.eval()
+            dist.barrier()  
             if is_master:
-                model.eval()
-                dist.barrier()
                 running_loss = 0.0
                 predictions, truths = [], []
                 with torch.no_grad():
@@ -233,7 +235,7 @@ try:
                             truths.append(labels_v)
                         except Exception as e:
                             print(f"[Warning] Skipping validation batch {index} due to error: {e}")
-                            continue
+                        continue
 
                 predictions = distributed_concat(torch.cat(predictions, dim=0), len(val_sampler.dataset), world_size)
                 truths = distributed_concat(torch.cat(truths, dim=0), len(val_sampler.dataset), world_size)
@@ -253,16 +255,17 @@ try:
                 if cur_acc > max_acc:
                     max_acc = cur_acc
                     trigger_times = 0
-                    save_best_ckpt(i, model, optimizer, val_loss, model_name, ckpt_dir)
-                    print(f'[Epoch {i}] New best model saved (Acc: {cur_acc:.4f})')
-                else:
-                    trigger_times += 1
-                    if trigger_times > PATIENCE:
-                        print(f"[Early Stop] Triggered at Epoch {i}")
-                        break
-                del predictions, truths
+                save_best_ckpt(i, model, optimizer, val_loss, model_name, ckpt_dir)
+                print(f'[Epoch {i}] New best model saved (Acc: {cur_acc:.4f})')
             else:
-                dist.barrier()
+                trigger_times += 1
+                if trigger_times > PATIENCE:
+                    print(f"[Early Stop] Triggered at Epoch {i}")
+                break
+                del predictions, truths
+
+        else:
+            dist.barrier()
 
 except Exception as e:
     print(f"[Fatal Error] {e}")
