@@ -40,7 +40,7 @@ clf = LogisticRegression(penalty="l1", C=0.1, solver="liblinear")
 clf.fit(X_train, y_train)
 
 print("Computing SHAP values...")
-explainer = shap.LinearExplainer(clf, X_train)
+explainer = shap.Explainer(clf, X_train)
 shap_values = explainer.shap_values(X_test)
 
 print("Processing SHAP output...")
