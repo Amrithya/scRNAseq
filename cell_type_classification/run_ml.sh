@@ -1,5 +1,11 @@
 #!/bin/bash
 
+model_name="lr"
+output_dir="results"
+mkdir -p "$output_dir"
+
+exec > "${output_dir}/${model_name}_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}.out" 2>&1
+
 #SBATCH --job-name=lr
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
@@ -8,13 +14,9 @@
 #SBATCH --cpus-per-task=3
 #SBATCH --time=24:00:00
 #SBATCH --hint=nomultithread
-#SBATCH --output=results/$model_name_%A_%a.out
-#SBATCH --error=results/$model_name_%A_%a.err
 #SBATCH --array=1
 
-model_name="lr"
-
-poetry run python -u -m gene_final.py \
+poetry run python -u gene_final.py \
     -m "$model_name" \
     -c
 
