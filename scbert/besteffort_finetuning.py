@@ -32,7 +32,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--local_rank", "--local-rank", type=int, default=-1)
 parser.add_argument("--bin_num", type=int, default=5)
 parser.add_argument("--gene_num", type=int, default=16906)
-parser.add_argument("--epoch", type=int, default=11)
+parser.add_argument("--epoch", type=int, default=12)
 parser.add_argument("--seed", type=int, default=2021)
 parser.add_argument("--batch_size", type=int, default=4)
 parser.add_argument("--learning_rate", type=float, default=1e-4)
@@ -246,8 +246,7 @@ for i in range(start_epoch, EPOCHS + 1):
     epoch_acc = 100 * cum_acc / index
     epoch_loss = get_reduced(epoch_loss, local_rank, 0, world_size)
     epoch_acc = get_reduced(epoch_acc, local_rank, 0, world_size)
-    if is_master:
-        print(f'==  Epoch: {i} | Training Loss: {epoch_loss:.6f} | Accuracy: {epoch_acc:6.4f}%  ==')
+    print(f'==  Epoch: {i} | Training Loss: {epoch_loss:.6f} | Accuracy: {epoch_acc:6.4f}%  ==')
     dist.barrier()
     scheduler.step()
 
@@ -281,11 +280,10 @@ for i in range(start_epoch, EPOCHS + 1):
         f1 = f1_score(truths, predictions, average='macro')
         val_loss = running_loss / index
         val_loss = get_reduced(val_loss, local_rank, 0, world_size)
-        if is_master:
-            print(f"[DEBUG] Rank {local_rank} | cur_acc: {cur_acc}, f1: {f1}, val_loss: {val_loss}, preds_len: {len(predictions)}", flush=True)
-            print(f'==  Epoch: {i} | Validation Loss: {val_loss:.6f} | F1 Score: {f1:.6f}  ==', flush=True)
-            print(confusion_matrix(truths, predictions))
-            print(classification_report(truths, predictions, target_names=label_dict.tolist(), digits=4))
+        print(f"[DEBUG] Rank {local_rank} | cur_acc: {cur_acc}, f1: {f1}, val_loss: {val_loss}, preds_len: {len(predictions)}", flush=True)
+        print(f'==  Epoch: {i} | Validation Loss: {val_loss:.6f} | F1 Score: {f1:.6f}  ==', flush=True)
+        print(confusion_matrix(truths, predictions))
+        print(classification_report(truths, predictions, target_names=label_dict.tolist(), digits=4))
         print(f"[DEBUG] Local rank {local_rank}: Finished validation step, predictions shape = {predictions.shape}", flush=True)
         if cur_acc > max_acc:
             max_acc = cur_acc
