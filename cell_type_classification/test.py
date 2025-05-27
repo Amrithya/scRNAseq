@@ -19,15 +19,27 @@ cell_type_series = adata.obs['cell_type']
 le = LabelEncoder()
 y = le.fit_transform(cell_type_series)
 
+print("X,y",X.shape,y.shape)
+
 clf = LogisticRegression(penalty="l1",solver="liblinear")
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+print("X_train",X_train.shape)
+print("X_test",X_test.shape)
+print("y_train",y_train.shape)
+print("y_test",y_test.shape)
+
 clf.fit(X_train, y_train)
 
-explainer = shap.LinearExplainer(clf, X_train, feature_perturbation="interventional")
+explainer = shap.Explainer(clf, X_train)
 shap_values = explainer.shap_values(X_test)
 
 n_classes = len(shap_values)
 n_samples, n_features = shap_values[0].shape
+
+print("n_classes",n_classes)
+print("n_samples",n_samples)
+print("n_features",n_features)
 
 feature_names = list(adata.var_names)[:n_features]  
 
@@ -39,7 +51,7 @@ assert stacked.shape[1] == len(col_names), f"Mismatch: {stacked.shape[1]} SHAP c
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 results_dir = os.path.join(base_dir, 'results')
-os.makedirs(results_dir, exist_ok=True)  # Ensure directory exists
+os.makedirs(results_dir, exist_ok=True)
 
 results_file = os.path.join(results_dir, "shap_values_all_classes.csv")
 df = pd.DataFrame(stacked, columns=col_names)
