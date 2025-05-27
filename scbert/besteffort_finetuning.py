@@ -66,6 +66,7 @@ model_name = args.model_name
 ckpt_dir = args.ckpt_dir
 
 dist.init_process_group(backend='nccl')
+local_rank = int(os.environ["LOCAL_RANK"])
 torch.cuda.set_device(local_rank)
 device = torch.device("cuda", local_rank)
 world_size = torch.distributed.get_world_size()
