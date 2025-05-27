@@ -34,7 +34,6 @@ print(f"X_test shape: {X_test.shape}")
 print(f"y_train shape: {y_train.shape}")
 print(f"y_test shape: {y_test.shape}")
 
-
 print("Fitting logistic regression...")
 clf = LogisticRegression(penalty="l1", C=0.1, solver="liblinear")
 clf.fit(X_train, y_train)
@@ -42,27 +41,23 @@ clf.fit(X_train, y_train)
 print("Computing SHAP values...")
 explainer = shap.Explainer(clf, X_train)
 shap_values = explainer(X_test)
+shap_array = shap_values.values
 
 print("Processing SHAP output...")
-if isinstance(shap_values, list):
-    n_classes = len(shap_values)
-    n_samples, n_features = shap_values[0].shape
-    stacked = np.hstack([sv for sv in tqdm(shap_values, desc="Stacking SHAP values")])
+if shap_array.ndim == 3:
+    n_samples, n_classes, n_features = shap_array.shape
+    stacked = shap_array.reshape(n_samples, n_classes * n_features)
+elif shap_array.ndim == 2:
+    n_samples, n_features = shap_array.shape
+    n_classes = 1
+    stacked = shap_array
 else:
-    if shap_values.ndim == 3:
-        n_samples, n_classes, n_features = shap_values.shape
-        stacked = shap_values.reshape(n_samples, n_classes * n_features)
-    elif shap_values.ndim == 2:
-        n_samples, n_features = shap_values.shape
-        n_classes = 1
-        stacked = shap_values
-    else:
-        raise ValueError("Unexpected SHAP output shape")
+    raise ValueError("Unexpected SHAP output shape")
 
 print(f"n_samples: {n_samples}, n_features: {n_features}, n_classes: {n_classes}")
 
 print("Generating feature names...")
-feature_names = list(adata.var_names)[:n_features]
+feature_names = shap_values.feature_names
 
 if n_classes > 1:
     col_names = [f"{gene}_class_{cls}" for cls in range(n_classes) for gene in feature_names]
