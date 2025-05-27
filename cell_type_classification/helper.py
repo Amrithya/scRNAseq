@@ -360,23 +360,30 @@ def shap_explain(clf, X_train, X_test, model):
     - model: Trained model
     - explainer: SHAP explainer object
     """
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    results_dir = os.path.join(base_dir, 'results')
-    print("Explaining model predictions using SHAP")
-    explainer = shap.Explainer(clf, X_train)
-    shap_values = explainer(X_test)
+    try:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        results_dir = os.path.join(base_dir, 'results')
+        os.makedirs(results_dir, exist_ok=True)
+        
+        print("Explaining model predictions using SHAP")
+        explainer = shap.Explainer(clf, X_train)
+        shap_values = explainer(X_test)
 
-    shap.summary_plot(shap_values, X_test)
-    shap.force_plot(shap_values[0])
-    shap.dependence_plot("mean radius", shap_values, X_test)
+        shap.summary_plot(shap_values, X_test)
+        shap.force_plot(shap_values[0])
+        shap.dependence_plot("mean radius", shap_values, X_test)
 
-    shap_df = pd.DataFrame(shap_values.values[:5], columns=X_test.columns)
-    shap_df["instance"] = range(1, 6)
-    shap_df["method"] = "SHAP"
+        shap_df = pd.DataFrame(shap_values.values[:5], columns=X_test.columns)
+        shap_df["instance"] = range(1, 6)
+        shap_df["method"] = "SHAP"
 
-    results_file = os.path.join(results_dir, f"results_file_{model}_xai.csv")
-    shap_df.to_csv(results_file, index=False)
+        results_file = os.path.join(results_dir, f"results_file_{model}_xai.csv")
+        shap_df.to_csv(results_file, index=False)
+        return shap_values, model, explainer
 
+    except Exception as e:
+        print(f"Error during SHAP explanation: {e}")
+        return None, model, None
 
 
 def lime_explain(clf, X_train, X_test, le, model):
@@ -386,35 +393,43 @@ def lime_explain(clf, X_train, X_test, le, model):
     Returns:
     - lime_explainer: LIME explainer object
     """
-    print("Explaining model predictions using LIME")
-    
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    results_dir = os.path.join(base_dir, 'results')
+    try:
+        print("Explaining model predictions using LIME")
 
-    lime_explainer = LimeTabularExplainer(
-        X_train.values,
-        feature_names=X_train.columns.tolist(),
-        class_names=le.classes_.tolist(),
-        mode="classification"
-    )
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        results_dir = os.path.join(base_dir, 'results')
+        os.makedirs(results_dir, exist_ok=True)
 
-    lime_data = []
-    for i in range(5):
-        exp = lime_explainer.explain_instance(X_test.iloc[i].values, clf.predict_proba, num_features=10)
-        exp.show_in_notebook(show_table=True)
+        lime_explainer = LimeTabularExplainer(
+            X_train.values,
+            feature_names=X_train.columns.tolist(),
+            class_names=le.classes_.tolist(),
+            mode="classification"
+        )
 
-        for feature, weight in exp.as_list():
-            lime_data.append({
-                "instance": i + 1,
-                "feature": feature,
-                "weight": weight,
-                "method": "LIME"
-            })
+        lime_data = []
+        for i in range(5):
+            exp = lime_explainer.explain_instance(X_test.iloc[i].values, clf.predict_proba, num_features=10)
+            exp.show_in_notebook(show_table=True)
 
-    lime_df = pd.DataFrame(lime_data)
+            for feature, weight in exp.as_list():
+                lime_data.append({
+                    "instance": i + 1,
+                    "feature": feature,
+                    "weight": weight,
+                    "method": "LIME"
+                })
 
-    results_file = os.path.join(results_dir, f"results_file_{model}_xai.csv")
-    if os.path.exists(results_file):
-        lime_df.to_csv(results_file, mode='a', header=False, index=False)
-    else:
-        lime_df.to_csv(results_file, index=False)
+        lime_df = pd.DataFrame(lime_data)
+
+        results_file = os.path.join(results_dir, f"results_file_{model}_xai.csv")
+        if os.path.exists(results_file):
+            lime_df.to_csv(results_file, mode='a', header=False, index=False)
+        else:
+            lime_df.to_csv(results_file, index=False)
+
+        return lime_explainer
+
+    except Exception as e:
+        print(f"Error during LIME explanation: {e}")
+        return None

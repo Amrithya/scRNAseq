@@ -1,7 +1,5 @@
 #!/bin/bash
 
-model_name="lr"
-
 #SBATCH --job-name=lr
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
@@ -10,13 +8,13 @@ model_name="lr"
 #SBATCH --cpus-per-task=3
 #SBATCH --time=24:00:00
 #SBATCH --hint=nomultithread
-#SBATCH --output=results/lr_%A_%a.out
-#SBATCH --error=results/lr_%A_%a.err
+#SBATCH --output=results/script_results/lr_%A_%a.out
+#SBATCH --error=results/script_results/lr_%A_%a.err
 #SBATCH --array=1
 
 
 poetry run python -u gene_final.py \
-    -m "$model_name" \
+    -m lr \
     -c
 
 echo "All Done at $(date)!"
