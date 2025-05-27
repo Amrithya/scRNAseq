@@ -1,15 +1,28 @@
-import os
+import numpy as np
+import pandas as pd
 import scanpy as sc
+import anndata as ad
+import shap
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-file_path = os.path.join(current_dir, '..', 'data', 'pbmc68k(2).h5ad')
-adata = sc.read_h5ad(file_path)
+from sklearn.preprocessing import LabelEncoder
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
 
-print(adata)
-print(adata.X.shape)
+adata = sc.read_h5ad('/data1/data/corpus/pbmc68k(2).h5ad')
+sc.pp.normalize_total(adata, target_sum=1e4)
+sc.pp.log1p(adata)
+X = adata.X
 
-print(adata.X)
-print(adata.obs['cell_type'].value_counts())
+cell_type_series = adata.obs['cell_type']
+le = LabelEncoder()
+y = le.fit_transform(cell_type_series)
 
-sc.pp.neighbors(adata)
-sc.tl.umap(adata)
+clf = LogisticRegression(penalty="l1",solver="liblinear")
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+clf.fit(X_train, y_train)
+
+explainer = shap.LinearExplainer(clf, X_train, feature_perturbation="interventional")
+shap_values = explainer.shap_values(X_test)
+
+print("shap:", shap_values)
