@@ -41,38 +41,5 @@ clf.fit(X_train, y_train)
 print("Computing SHAP values...")
 explainer = shap.Explainer(clf, X_train)
 shap_values = explainer(X_test)
-shap_array = shap_values.values
 
-print("Processing SHAP output...")
-if shap_array.ndim == 3:
-    n_samples, n_classes, n_features = shap_array.shape
-    stacked = shap_array.reshape(n_samples, n_classes * n_features)
-elif shap_array.ndim == 2:
-    n_samples, n_features = shap_array.shape
-    n_classes = 1
-    stacked = shap_array
-else:
-    raise ValueError("Unexpected SHAP output shape")
-
-print(f"n_samples: {n_samples}, n_features: {n_features}, n_classes: {n_classes}")
-
-print("Generating feature names...")
-feature_names = shap_values.feature_names
-
-if n_classes > 1:
-    col_names = [f"{gene}_class_{cls}" for cls in range(n_classes) for gene in feature_names]
-else:
-    col_names = feature_names
-
-assert stacked.shape[1] == len(col_names), f"Mismatch: {stacked.shape[1]} SHAP cols vs {len(col_names)} headers"
-
-print("Saving results...")
-base_dir = os.path.dirname(os.path.abspath(__file__))
-results_dir = os.path.join(base_dir, 'results')
-os.makedirs(results_dir, exist_ok=True)
-
-results_file = os.path.join(results_dir, "shap_values_all_classes.csv")
-df = pd.DataFrame(stacked, columns=col_names)
-df.to_csv(results_file, index=False)
-
-print(f"Done. Results saved to {results_file}")
+print("shap_values shape",shap_values.shape)
