@@ -351,32 +351,70 @@ def do_smote(X, y):
     return X_balanced, y_balanced
         
 
-def shap_explain(clf,X_train, X_test):
+def shap_explain(clf, X_train, X_test, model):
     """
-    Function to train a Logistic Regression model and explain it using SHAP.
-    
+    Function to explain model predictions using SHAP and save results.
+
     Returns:
     - shap_values: SHAP values for the test data
-    - model: Trained logistic regression model
+    - model: Trained model
     - explainer: SHAP explainer object
     """
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    results_dir = os.path.join(base_dir, 'results')
     print("Explaining model predictions using SHAP")
     explainer = shap.Explainer(clf, X_train)
     shap_values = explainer(X_test)
+
     shap.summary_plot(shap_values, X_test)
     shap.force_plot(shap_values[0])
     shap.dependence_plot("mean radius", shap_values, X_test)
 
-def lime_explain(clf, X_train, X_test, le):
+    shap_df = pd.DataFrame(shap_values.values[:5], columns=X_test.columns)
+    shap_df["instance"] = range(1, 6)
+    shap_df["method"] = "SHAP"
+
+    results_file = os.path.join(results_dir, f"results_file_{model}_xai.csv")
+    shap_df.to_csv(results_file, index=False)
+
+
+
+def lime_explain(clf, X_train, X_test, le, model):
     """
-    Function to explain a classifier's predictions using LIME.
-    
+    Function to explain a classifier's predictions using LIME and save results.
+
     Returns:
     - lime_explainer: LIME explainer object
     """
-
     print("Explaining model predictions using LIME")
-    lime_explainer = LimeTabularExplainer(X_train, feature_names=le.classes_, class_names=le.classes_, mode="classification")
+    
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    results_dir = os.path.join(base_dir, 'results')
+
+    lime_explainer = LimeTabularExplainer(
+        X_train.values,
+        feature_names=X_train.columns.tolist(),
+        class_names=le.classes_.tolist(),
+        mode="classification"
+    )
+
+    lime_data = []
     for i in range(5):
-        exp = lime_explainer.explain_instance(X_test[i], clf.predict_proba, num_features=10)
+        exp = lime_explainer.explain_instance(X_test.iloc[i].values, clf.predict_proba, num_features=10)
         exp.show_in_notebook(show_table=True)
+
+        for feature, weight in exp.as_list():
+            lime_data.append({
+                "instance": i + 1,
+                "feature": feature,
+                "weight": weight,
+                "method": "LIME"
+            })
+
+    lime_df = pd.DataFrame(lime_data)
+
+    results_file = os.path.join(results_dir, f"results_file_{model}_xai.csv")
+    if os.path.exists(results_file):
+        lime_df.to_csv(results_file, mode='a', header=False, index=False)
+    else:
+        lime_df.to_csv(results_file, index=False)
