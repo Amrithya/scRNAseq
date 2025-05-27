@@ -26,14 +26,21 @@ clf.fit(X_train, y_train)
 explainer = shap.LinearExplainer(clf, X_train, feature_perturbation="interventional")
 shap_values = explainer.shap_values(X_test)
 
+n_classes = len(shap_values)
+n_samples, n_features = shap_values[0].shape
+
+feature_names = list(adata.var_names)[:n_features]  
+
 stacked = np.hstack(shap_values)
 
-col_names = [
-    f"{gene}_class_{cls}" for cls in range(len(shap_values)) for gene in adata.var_names
-]
+col_names = [f"{gene}_class_{cls}" for cls in range(n_classes) for gene in feature_names]
+
+assert stacked.shape[1] == len(col_names), f"Mismatch: {stacked.shape[1]} SHAP cols vs {len(col_names)} headers"
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 results_dir = os.path.join(base_dir, 'results')
+os.makedirs(results_dir, exist_ok=True)  # Ensure directory exists
+
 results_file = os.path.join(results_dir, "shap_values_all_classes.csv")
 df = pd.DataFrame(stacked, columns=col_names)
 df.to_csv(results_file, index=False)
