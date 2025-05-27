@@ -41,7 +41,7 @@ clf.fit(X_train, y_train)
 
 print("Computing SHAP values...")
 explainer = shap.Explainer(clf, X_train)
-shap_values = explainer.shap_values(X_test)
+shap_values = explainer(X_test)
 
 print("Processing SHAP output...")
 if isinstance(shap_values, list):
