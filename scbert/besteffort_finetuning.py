@@ -252,6 +252,7 @@ for i in range(start_epoch, EPOCHS + 1):
     scheduler.step()
 
     if i % VALIDATE_EVERY == 0:
+        print("Inside valdidation")
         model.eval()
         dist.barrier()
         running_loss = 0.0
@@ -273,16 +274,19 @@ for i in range(start_epoch, EPOCHS + 1):
         predictions = distributed_concat(torch.cat(predictions, dim=0), len(val_sampler.dataset), world_size)
         truths = distributed_concat(torch.cat(truths, dim=0), len(val_sampler.dataset), world_size)
         no_drop = predictions != -1
-        predictions = np.array((predictions[no_drop]).cpu())
-        truths = np.array((truths[no_drop]).cpu())
+        predictions = (predictions[no_drop]).cpu().numpy()
+        truths = (truths[no_drop]).cpu().numpy()
+
         cur_acc = accuracy_score(truths, predictions)
         f1 = f1_score(truths, predictions, average='macro')
         val_loss = running_loss / index
         val_loss = get_reduced(val_loss, local_rank, 0, world_size)
         if is_master:
-            print(f'==  Epoch: {i} | Validation Loss: {val_loss:.6f} | F1 Score: {f1:.6f}  ==')
+            print(f"[DEBUG] Rank {local_rank} | cur_acc: {cur_acc}, f1: {f1}, val_loss: {val_loss}, preds_len: {len(predictions)}", flush=True)
+            print(f'==  Epoch: {i} | Validation Loss: {val_loss:.6f} | F1 Score: {f1:.6f}  ==', flush=True)
             print(confusion_matrix(truths, predictions))
             print(classification_report(truths, predictions, target_names=label_dict.tolist(), digits=4))
+        print(f"[DEBUG] Local rank {local_rank}: Finished validation step, predictions shape = {predictions.shape}", flush=True)
         if cur_acc > max_acc:
             max_acc = cur_acc
             trigger_times = 0
