@@ -1,8 +1,6 @@
 #!/bin/bash
 
-model_name="lr"
-export SLURM_JOB_NAME="$model_name"
-
+#SBATCH --job-name=lr
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --nodes=1
@@ -14,8 +12,9 @@ export SLURM_JOB_NAME="$model_name"
 #SBATCH --error=results/$model_name_%A_%a.err
 #SBATCH --array=1
 
-# run your job
-poetry run python -m gene_final.py \
+model_name="lr"
+
+poetry run python -u -m gene_final.py \
     -m "$model_name" \
     -c
 
