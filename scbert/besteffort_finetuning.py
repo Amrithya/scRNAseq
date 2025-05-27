@@ -293,3 +293,8 @@ for i in range(start_epoch, EPOCHS + 1):
                 break
 
         del predictions, truths
+
+
+if dist.is_initialized():
+    dist.destroy_process_group()
+
