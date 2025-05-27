@@ -3,6 +3,7 @@ import pandas as pd
 import scanpy as sc
 import anndata as ad
 import shap
+import os
 
 from sklearn.preprocessing import LabelEncoder
 from sklearn.linear_model import LogisticRegression
@@ -25,4 +26,14 @@ clf.fit(X_train, y_train)
 explainer = shap.LinearExplainer(clf, X_train, feature_perturbation="interventional")
 shap_values = explainer.shap_values(X_test)
 
-print("shap:", shap_values)
+stacked = np.hstack(shap_values)
+
+col_names = [
+    f"{gene}_class_{cls}" for cls in range(len(shap_values)) for gene in adata.var_names
+]
+
+base_dir = os.path.dirname(os.path.abspath(__file__))
+results_dir = os.path.join(base_dir, 'results')
+results_file = os.path.join(results_dir, "shap_values_all_classes.csv")
+df = pd.DataFrame(stacked, columns=col_names)
+df.to_csv(results_file, index=False)
