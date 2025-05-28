@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name="inference"          # Job Name
+#SBATCH --job-name="inference_predict"          # Job Name
 
 #SBATCH --partition=gpu                     # Partition name
 
@@ -14,11 +14,11 @@
 
 #SBATCH --time=08:00:00                     # Max runtime (HH:MM:SS)
 
-#SBATCH --output=results/inference_%A_%a.out    # STDOUT file
+#SBATCH --output=results/inference_predict_%A_%a.out    # STDOUT file
 
-#SBATCH --error=results/inference_%A_%a.err     # STDERR file
+#SBATCH --error=results/inference_predict_%A_%a.err     # STDERR file
 
-poetry run python -u inference.py
+poetry run python -u train_inference.py
 
 echo "All Done!"
 wait
