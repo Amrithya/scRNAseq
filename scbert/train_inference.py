@@ -4,45 +4,25 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, f1_score, classification_report
 import pickle as pkl
 import umap.umap_ as umap
+import torch
 import matplotlib.pyplot as plt
 
-embedding_path = "inference_embeddings.npy"
-embeddings = np.load(embedding_path)  
+representations = torch.load('performer_learned_representations.pt')
 
-label_path = "./ckpts/label.pkl"
-with open(label_path, 'rb') as f:
-    labels = pkl.load(f)
+rep_np = representations.cpu().numpy()
 
-if hasattr(labels, 'numpy'):
-    labels = labels.numpy()
+print("Representation shape:", rep_np.shape)
 
-X_train, X_test, y_train, y_test = train_test_split(
-    embeddings, labels, test_size=0.2, random_state=42, stratify=labels
-)
+if len(rep_np.shape) == 3:
+    rep_np = rep_np.mean(axis=1)  # shape becomes [batch_size, dim]
 
-clf = LogisticRegression(max_iter=1000, solver='lbfgs', multi_class='auto')
-clf.fit(X_train, y_train)
-
-y_pred = clf.predict(X_test)
-
-acc = accuracy_score(y_test, y_pred)
-f1 = f1_score(y_test, y_pred, average='weighted')
-
-print("Logistic Regression Performance:")
-print(f"Accuracy: {acc:.4f}")
-print(f"F1 Score (weighted): {f1:.4f}")
-print("Classification Report:")
-print(classification_report(y_test, y_pred))
-
-umap_model = umap.UMAP(n_neighbors=10, min_dist=0.1, random_state=42)
-embedding_2d = umap_model.fit_transform(embeddings)
+reducer = umap.UMAP(n_neighbors=15, min_dist=0.1, metric='euclidean')
+embedding = reducer.fit_transform(rep_np)
 
 plt.figure(figsize=(8, 6))
-scatter = plt.scatter(embedding_2d[:, 0], embedding_2d[:, 1], c=labels, cmap='tab10', s=10, alpha=0.7)
-plt.title("UMAP of PerformerLM Embeddings")
+plt.scatter(embedding[:, 0], embedding[:, 1], s=10, alpha=0.8)
+plt.title("UMAP of Performer Representations")
 plt.xlabel("UMAP-1")
 plt.ylabel("UMAP-2")
-plt.colorbar(scatter, label="Cell Type")
 plt.tight_layout()
-
-plt.savefig("umap_performerlm.png", dpi=300)
+plt.savefig('umap_performer_representations.png')
