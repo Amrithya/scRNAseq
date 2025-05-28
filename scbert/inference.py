@@ -63,7 +63,7 @@ model.to(device)
 model.eval()
 
 with torch.no_grad():
-    hidden = model.performer(input_tokens)
+    hidden = model(input_tokens)
 
 print("Hidden representation shape:", hidden.shape)
 learned_representations = hidden.cpu()
