@@ -14,7 +14,7 @@ from scipy import sparse
 from sklearn.model_selection import StratifiedShuffleSplit, StratifiedKFold
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, classification_report
 import torch
-import umap.umap_ as umap
+import umap.umap_ as umap
 import matplotlib.pyplot as plt
 from torch import nn
 from torch.optim import Adam
@@ -34,7 +34,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--local_rank", "--local-rank", type=int, default=-1)
 parser.add_argument("--bin_num", type=int, default=5)
 parser.add_argument("--gene_num", type=int, default=16906)
-parser.add_argument("--epoch", type=int, default=22)
+parser.add_argument("--epoch", type=int, default=23)
 parser.add_argument("--seed", type=int, default=2021)
 parser.add_argument("--batch_size", type=int, default=4)
 parser.add_argument("--learning_rate", type=float, default=1e-4)
