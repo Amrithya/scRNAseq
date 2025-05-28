@@ -67,7 +67,7 @@ with torch.no_grad():
         batch_tokens_np = X_tokens[start_idx:end_idx, :SEQ_LEN]
         batch_tokens = torch.tensor(batch_tokens_np, dtype=torch.long).to(device)
         
-        embedded = model.token_emb(batch_tokens)
+        embedded = model.token_emb(batch_tokens).float()
         if hasattr(model, 'pos_emb') and model.pos_emb is not None:
             embedded = embedded + model.pos_emb(embedded)
 
