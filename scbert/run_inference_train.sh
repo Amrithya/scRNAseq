@@ -2,7 +2,7 @@
 
 #SBATCH --job-name="inference_predict"          # Job Name
 
-#SBATCH --partition=gpu                     # Partition name
+#SBATCH --partition=besteffort                     # Partition name
 
 #SBATCH --gres=gpu:1
 
