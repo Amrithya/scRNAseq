@@ -96,11 +96,13 @@ def signal_handler(signum, frame):
 signal.signal(signal.SIGUSR1, signal_handler)
 
 def get_embeddings_after_conv(x, conv_layer, act_layer, device):
+    print(f"Shape get emb conv before: {x.shape}")
     x = x[:, None, :, :].to(device)
     x = conv_layer(x)   
     x = act_layer(x)
     x_flat = x.view(x.shape[0], -1)
     embeddings_np = x_flat.cpu().numpy()
+    print(f"Shape get emb conv after: {embeddings_np.shape}")
     return embeddings_np
 
 def run_umap_on_all_cov_embeddings(all_cov_embeddings, labels, ckpt_dir, label_dict, seed=SEED):
@@ -272,6 +274,7 @@ for i in range(start_epoch, EPOCHS + 1):
                 with torch.no_grad():
                     print("saving conv emb")
                     embeds = model.module.performer(data)
+                    print("model.module.performer(data)",embeds)
                     embeddings_after_conv = get_embeddings_after_conv(
                                                     embeds, 
                                                     conv_layer=model.module.to_out.conv1, 
