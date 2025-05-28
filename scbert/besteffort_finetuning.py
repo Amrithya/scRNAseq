@@ -121,13 +121,15 @@ class Identity(nn.Module):
         self.fc1 = nn.Linear(SEQ_LEN, out_dim)
         self.act1 = nn.ReLU()
         self._printed = False
+        self.current_conv_output = None
 
     def forward(self, x):
         if not self._printed:
             print(f"Shape after Performer, before Identity: {x.shape}")
-        x = x[:, None, :, :]
-        x = self.conv1(x)
-        x = self.act(x)
+        x = x[:, None, :, :]  
+        conv_out = self.conv1(x)
+        self.current_conv_output = conv_out.view(conv_out.size(0), -1).detach().cpu()
+        x = self.act(conv_out)
         x = x.view(x.shape[0], -1)
         x = self.fc1(x)
         x = self.act1(x)
@@ -135,6 +137,7 @@ class Identity(nn.Module):
             print(f"Shape after Identity: {x.shape}")
             self._printed = True
         return x
+
 
 try:
     print("Loading data...")
@@ -215,11 +218,9 @@ if args.resume and os.path.exists(latest_ckpt_path):
 dist.barrier()
 trigger_times = 0
 max_acc = 0.0
-all_embeddings = []
-all_cov_embeddings = []
-embed_dim_saved = False
-all_labels = []
-all_labels_np = []
+
+all_conv_features = []
+all_labels_for_conv = []
 
 for i in range(start_epoch, EPOCHS + 1):
     
@@ -228,7 +229,7 @@ for i in range(start_epoch, EPOCHS + 1):
     dist.barrier()
     running_loss = 0.0
     cum_acc = 0.0
-        
+
     try:
         for index, (data, labels) in enumerate(tqdm(train_loader, desc=f"Epoch {i} - Training")):
             index += 1
@@ -236,10 +237,18 @@ for i in range(start_epoch, EPOCHS + 1):
             if index % GRADIENT_ACCUMULATION != 0:
                 with model.no_sync():
                     logits = model(data)
+                    if i == EPOCHS:
+                        conv_feats = model.module.to_out.current_conv_output
+                        all_conv_features.append(conv_feats)
+                        all_labels_for_conv.append(labels.cpu())
                     loss = loss_fn(logits, labels)
                     loss.backward()
             if index % GRADIENT_ACCUMULATION == 0:
                 logits = model(data)
+                if i == EPOCHS:
+                    conv_feats = model.module.to_out.current_conv_output
+                    all_conv_features.append(conv_feats)
+                    all_labels_for_conv.append(labels.cpu())
                 loss = loss_fn(logits, labels)
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), int(1e6))
@@ -255,7 +264,7 @@ for i in range(start_epoch, EPOCHS + 1):
     except Exception as e:
         print(f"[ERROR] Training failed at epoch {i}: {e}")
         continue
-       
+
     epoch_loss = running_loss / index
     epoch_acc = 100 * cum_acc / index
     epoch_loss = get_reduced(epoch_loss, local_rank, 0, world_size)
@@ -265,7 +274,7 @@ for i in range(start_epoch, EPOCHS + 1):
     scheduler.step()
 
     if i % VALIDATE_EVERY == 0:
-        print("Inside valdidation")
+        print("Inside validation")
         model.eval()
         dist.barrier()
         running_loss = 0.0
@@ -279,40 +288,52 @@ for i in range(start_epoch, EPOCHS + 1):
                 loss = loss_fn(logits, labels_v)
                 running_loss += loss.item()
                 probs = torch.softmax(logits, dim=-1)
-                final = probs.argmax(dim=-1)
-                final[torch.max(probs, dim=-1).values < UNASSIGN_THRES] = -1
-                predictions.append(final)
-                truths.append(labels_v)
+                predictions.extend(probs.cpu().numpy())
+                truths.extend(labels_v.cpu().numpy())
 
-        predictions = distributed_concat(torch.cat(predictions, dim=0), len(val_sampler.dataset), world_size)
-        truths = distributed_concat(torch.cat(truths, dim=0), len(val_sampler.dataset), world_size)
-        no_drop = predictions != -1
-        predictions = (predictions[no_drop]).cpu().numpy()
-        truths = (truths[no_drop]).cpu().numpy()
-
-        cur_acc = accuracy_score(truths, predictions)
-        f1 = f1_score(truths, predictions, average='macro')
         val_loss = running_loss / index
         val_loss = get_reduced(val_loss, local_rank, 0, world_size)
-        if local_rank == 0 :
-            print(f"[DEBUG] Rank {local_rank} | cur_acc: {cur_acc}, f1: {f1}, val_loss: {val_loss}, preds_len: {len(predictions)}", flush=True)
-            print(f'==  Epoch: {i} | Validation Loss: {val_loss:.6f} | F1 Score: {f1:.6f}  ==', flush=True)
-            print(confusion_matrix(truths, predictions))
-            print(classification_report(truths, predictions, target_names=label_dict.tolist(), digits=4))
-            
-        print(f"[DEBUG] Local rank {local_rank}: Finished validation step, predictions shape = {predictions.shape}", flush=True)
-        if cur_acc > max_acc:
-            max_acc = cur_acc
-            trigger_times = 0
+        print(f"Validation Loss: {val_loss:.6f}")
+
+        if local_rank == 0:
+            predictions = np.array(predictions)
+            truths = np.array(truths)
+            val_acc = (predictions.argmax(axis=1) == truths).mean()
+            val_f1 = f1_score(truths, predictions.argmax(axis=1), average='weighted')
+            print(f"Validation Accuracy: {val_acc:.4f}, F1: {val_f1:.4f}")
+
+            if val_loss < max_acc:
+                trigger_times = 0
+            else:
+                trigger_times += 1
+                if trigger_times >= PATIENCE:
+                    print(f"Early stopping at epoch {i}")
+                    save_ckpt(i, model, optimizer, scheduler, val_loss, model_name, ckpt_dir)
+                    break
+            max_acc = max(val_loss, max_acc)
             save_ckpt(i, model, optimizer, scheduler, val_loss, model_name, ckpt_dir)
-        else:
-            trigger_times += 1
-            if trigger_times > PATIENCE:
-                break
 
-        del predictions, truths
+    dist.barrier()
 
 
-if dist.is_initialized():
-    dist.destroy_process_group()
+if local_rank == 0 and len(all_conv_features) > 0:
+    print("Concatenating conv features and labels for UMAP...")
+    epoch_conv_features = torch.cat(all_conv_features, dim=0).detach().cpu().numpy()
+    epoch_labels_np = torch.cat(all_labels_for_conv, dim=0).cpu().numpy()
 
+    print(f"Performing UMAP on shape: {epoch_conv_features.shape}")
+    reducer = umap.UMAP(random_state=SEED)
+    embedding = reducer.fit_transform(epoch_conv_features)
+    print(f"UMAP embedding shape: {embedding.shape}")
+
+    plt.figure(figsize=(12, 12))
+    scatter = plt.scatter(embedding[:, 0], embedding[:, 1], c=epoch_labels_np, cmap='Spectral', s=5)
+    plt.colorbar(scatter)
+    plt.title("UMAP of conv features from last epoch training batches")
+    plt.savefig(f'UMAP_{model_name}_epoch_{EPOCHS}.png')
+    plt.close()
+
+    del all_conv_features, all_labels_for_conv, epoch_conv_features, epoch_labels_np, embedding
+    gc.collect()
+
+print("Training and UMAP completed.")
