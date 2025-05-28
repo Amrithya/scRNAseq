@@ -17,6 +17,7 @@ torchvision = "^0.22.0"
 einops = "^0.8.1"
 local-attention = "^1.11.1"
 tqdm = "^4.67.1"
+umap = "^0.1.1"
 
 
 [tool.poetry.dev-dependencies]
