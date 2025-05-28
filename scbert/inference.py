@@ -61,6 +61,8 @@ model.load_state_dict(ckpt['model_state_dict'])
 model.eval()
 
 with torch.no_grad():
-    learned_representations = model(input_tokens)
+    hidden = model.performer(input_tokens)
 
+print("Hidden representation shape:", hidden.shape)
+learned_representations = hidden.cpu().numpy()
 torch.save(learned_representations, 'performer_learned_representations.pt')
