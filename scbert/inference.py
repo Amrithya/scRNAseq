@@ -2,75 +2,67 @@ import os
 import argparse
 import numpy as np
 import torch
-from torch.utils.data import Dataset, DataLoader
 from performer_pytorch import PerformerLM
 import scanpy as sc
 
-class SCDataset(Dataset):
-    def __init__(self, data, max_val):
-        self.data = data
-        self.max_val = max_val
+parser = argparse.ArgumentParser()
+parser.add_argument("--local_rank", "--local-rank", type=int, default=-1)
+parser.add_argument("--bin_num", type=int, default=5)
+parser.add_argument("--gene_num", type=int, default=16906)
+parser.add_argument("--epoch", type=int, default=23)
+parser.add_argument("--seed", type=int, default=2021)
+parser.add_argument("--batch_size", type=int, default=4)
+parser.add_argument("--learning_rate", type=float, default=1e-4)
+parser.add_argument("--grad_acc", type=int, default=60)
+parser.add_argument("--valid_every", type=int, default=1)
+parser.add_argument("--pos_embed", type=bool, default=True)
+parser.add_argument("--data_path", type=str, default='/data1/data/corpus/Zheng68K.h5ad')
+parser.add_argument("--model_path", type=str, default='/data1/data/corpus/panglao_pretrain.pth')
+parser.add_argument("--ckpt_dir", type=str, default='./ckpts/')
+parser.add_argument("--model_name", type=str, default='finetune')
+parser.add_argument("--resume", action="store_true")
 
-    def __getitem__(self, index):
-        full_seq = self.data[index].toarray()[0]
-        full_seq[full_seq > self.max_val] = self.max_val
-        full_seq = torch.from_numpy(full_seq).long()
-        full_seq = torch.cat((full_seq, torch.tensor([0])))
-        return full_seq
+args = parser.parse_args()
+rank = int(os.environ["RANK"])
+local_rank = args.local_rank
+is_master = local_rank == 0
 
-    def __len__(self):
-        return self.data.shape[0]
+SEED = args.seed
+EPOCHS = args.epoch
+BATCH_SIZE = args.batch_size
+GRADIENT_ACCUMULATION = args.grad_acc
+LEARNING_RATE = args.learning_rate
+SEQ_LEN = args.gene_num + 1
+VALIDATE_EVERY = args.valid_every
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--bin_num", type=int, default=5)
-    parser.add_argument("--gene_num", type=int, default=16906)
-    parser.add_argument("--batch_size", type=int, default=64)
-    parser.add_argument("--pos_embed", type=bool, default=True)
-    parser.add_argument("--data_path", type=str, default="/data1/data/corpus/Zheng68K.h5ad")
-    parser.add_argument("--model_path", type=str, default="/data1/data/corpus/panglao_pretrain.pth")
-    parser.add_argument("--output_path", type=str, default="./inference_embeddings.npy")
-    args = parser.parse_args()
+CLASS = args.bin_num + 2
+POS_EMBED_USING = args.pos_embed
+model_name = args.model_name
+ckpt_dir = args.ckpt_dir
 
-    CLASS = args.bin_num + 2
-    SEQ_LEN = args.gene_num + 1
+adata = sc.read_h5ad(args.data_path)
+X = adata.X
+if hasattr(X, 'toarray'):
+    X = X.toarray()
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+X_tokens = (X / X.max() * (CLASS - 1)).astype(np.int64)
+input_tokens_np = X_tokens[:BATCH_SIZE, :SEQ_LEN]
+input_tokens = torch.tensor(input_tokens_np)
 
-    adata = sc.read_h5ad(args.data_path)
-    dataset = SCDataset(adata.X, max_val=CLASS - 2)
-    dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=False)
+model = PerformerLM(
+    num_tokens=CLASS,
+    dim=200,
+    depth=6,
+    max_seq_len=SEQ_LEN,
+    heads=10,
+    local_attn_heads=0,
+    g2v_position_emb=POS_EMBED_USING
+)
+ckpt = torch.load(args.model_path, map_location='cpu')
+model.load_state_dict(ckpt['model_state_dict'])
+model.eval()
 
-    model = PerformerLM(
-        num_tokens=CLASS,
-        dim=200,
-        depth=6,
-        max_seq_len=SEQ_LEN,
-        heads=10,
-        g2v_position_emb=args.pos_embed
-    )
-    ckpt = torch.load(args.model_path, map_location="cpu")
-    model.load_state_dict(ckpt['model_state_dict'])
-    model.to(device)
-    model.eval()
+with torch.no_grad():
+    learned_representations = model(input_tokens)
 
-    all_embeddings = []
-    with torch.no_grad():
-        for batch in dataloader:
-            batch = batch.to(device)
-            token_embeddings = model.token_emb(batch)
-            hidden_states = token_embeddings
-            for block in model.layers:
-                hidden_states = block(hidden_states)
-            if hasattr(model, 'norm'):
-                hidden_states = model.norm(hidden_states)
-            hidden_states = hidden_states[:, :-1, :]
-            embeddings_2d = hidden_states.mean(dim=2)
-            all_embeddings.append(embeddings_2d.cpu())
-
-    all_embeddings = torch.cat(all_embeddings).numpy()
-    np.save(args.output_path, all_embeddings)
-    print(f"Saved embeddings to {args.output_path}, shape: {all_embeddings.shape}")
-
-if __name__ == "__main__":
-    main()
+torch.save(learned_representations, 'performer_learned_representations.pt')
