@@ -14,6 +14,8 @@ from scipy import sparse
 from sklearn.model_selection import StratifiedShuffleSplit, StratifiedKFold
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, classification_report
 import torch
+import umap
+import matplotlib.pyplot as plt
 from torch import nn
 from torch.optim import Adam
 from torch.nn import functional as F
@@ -32,7 +34,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--local_rank", "--local-rank", type=int, default=-1)
 parser.add_argument("--bin_num", type=int, default=5)
 parser.add_argument("--gene_num", type=int, default=16906)
-parser.add_argument("--epoch", type=int, default=20)
+parser.add_argument("--epoch", type=int, default=21)
 parser.add_argument("--seed", type=int, default=2021)
 parser.add_argument("--batch_size", type=int, default=4)
 parser.add_argument("--learning_rate", type=float, default=1e-4)
@@ -285,6 +287,36 @@ for i in range(start_epoch, EPOCHS + 1):
             print(f'==  Epoch: {i} | Validation Loss: {val_loss:.6f} | F1 Score: {f1:.6f}  ==', flush=True)
             print(confusion_matrix(truths, predictions))
             print(classification_report(truths, predictions, target_names=label_dict.tolist(), digits=4))
+            if local_rank == 0 and i == (EPOCHS + 1):
+                try:
+                    print("[UMAP] Computing UMAP on validation embeddings...", flush=True)
+                    all_embeds = []
+                    all_labels = []
+
+                    val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
+                    model.eval()
+                    with torch.no_grad():
+                        for data_v, labels_v in tqdm(val_loader, desc="UMAP: Embedding"):
+                            data_v = data_v.to(device)
+                            embeds = model.module.performer(data_v)
+                            embeds = embeds.mean(dim=1).detach().cpu().numpy()
+                            all_embeds.append(embeds)
+                            all_labels.extend(labels_v.numpy())
+
+                        all_embeds = np.vstack(all_embeds)
+                        reducer = umap.UMAP(n_neighbors=15, min_dist=0.1, metric='euclidean', random_state=SEED)
+                        umap_result = reducer.fit_transform(all_embeds)
+
+                        plt.figure(figsize=(10, 8))
+                        scatter = plt.scatter(umap_result[:, 0], umap_result[:, 1], c=all_labels, cmap='Spectral', s=10)
+                        plt.colorbar(scatter, ticks=range(len(label_dict)), label="Cell Types")
+                        plt.title("UMAP of Validation Embeddings")
+                        plt.savefig(os.path.join(ckpt_dir, f"{model_name}_val_umap_epoch{i}.png"), dpi=300)
+                        print(f"[UMAP] UMAP saved to {os.path.join(ckpt_dir, f'{model_name}_val_umap_epoch{i}.png')}", flush=True)
+
+                except Exception as e:
+                    print(f"[ERROR] UMAP visualization failed: {e}", flush=True)
+
         print(f"[DEBUG] Local rank {local_rank}: Finished validation step, predictions shape = {predictions.shape}", flush=True)
         if cur_acc > max_acc:
             max_acc = cur_acc
