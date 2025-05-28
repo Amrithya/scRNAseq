@@ -2,11 +2,11 @@
 
 #SBATCH --job-name="inference"          # Job Name
 
-#SBATCH --partition=gpu                     # Partition name
+#SBATCH --partition=besteffort                     # Partition name
 
-#SBATCH --gres=gpu:2
+#SBATCH --gres=gpu:4
 
-#SBATCH --ntasks-per-node=2
+#SBATCH --ntasks-per-node=4
 
 #SBATCH --cpus-per-task=3
 
