@@ -63,7 +63,11 @@ model.to(device)
 model.eval()
 
 with torch.no_grad():
-    hidden = model(input_tokens)
+    embedded = model.token_emb(input_tokens)
+    if hasattr(model, 'pos_emb') and model.pos_emb is not None:
+        embedded += model.pos_emb(embedded)
+
+    hidden = model.performer(embedded)
 
 print("Hidden representation shape:", hidden.shape)
 learned_representations = hidden.cpu()
