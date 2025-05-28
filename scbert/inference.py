@@ -59,7 +59,11 @@ def main():
         for batch in dataloader:
             batch = batch.to(device)
             token_embeddings = model.token_emb(batch)
-            hidden_states = model.transformer(token_embeddings)
+            hidden_states = token_embeddings
+            for block in model.layers:
+                hidden_states = block(hidden_states)
+            if hasattr(model, 'norm'):
+                hidden_states = model.norm(hidden_states)
             hidden_states = hidden_states[:, :-1, :]
             embeddings_2d = hidden_states.mean(dim=2)
             all_embeddings.append(embeddings_2d.cpu())
