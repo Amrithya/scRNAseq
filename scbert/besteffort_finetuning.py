@@ -95,6 +95,34 @@ def signal_handler(signum, frame):
 
 signal.signal(signal.SIGUSR1, signal_handler)
 
+def get_embeddings_after_conv(x, conv_layer, act_layer, device):
+    if x.ndim == 3:
+        x = x.mean(dim=1)  
+    elif x.ndim == 2:
+        pass
+    else:
+        raise ValueError(f"shape error {x.shape}")
+    x = x.unsqueeze(1).unsqueeze(2).to(device)
+    x = conv_layer(x)   
+    x = act_layer(x)
+    x_flat = x.view(x.shape[0], -1)
+    embeddings_np = x_flat.cpu().numpy()
+    return embeddings_np
+
+def run_umap_on_all_cov_embeddings(all_cov_embeddings, labels, epoch, ckpt_dir, label_dict, seed=SEED):
+    all_cov_embeddings_np = np.vstack(all_cov_embeddings)
+
+    reducer = umap.UMAP(n_neighbors=15, min_dist=0.1, metric='euclidean', random_state=seed)
+    umap_result = reducer.fit_transform(all_cov_embeddings_np)
+
+    plt.figure(figsize=(10, 8))
+    scatter = plt.scatter(umap_result[:, 0], umap_result[:, 1], c=labels, cmap='Spectral', s=10)
+    plt.colorbar(scatter, ticks=range(len(label_dict)), label="Cell Types")
+    plt.title(f"UMAP of Conv Layer Embeddings - Epoch {epoch}")
+    plt.savefig(os.path.join(ckpt_dir, f"umap_conv_embeddings_epoch{epoch}.png"), dpi=300)
+    plt.close()
+    print(f"[UMAP] UMAP plot saved to {os.path.join(ckpt_dir, f'umap_conv_embeddings_epoch{epoch}.png')}")
+
 class SCDataset(Dataset):
     def __init__(self, data, label):
         self.data = data
@@ -214,13 +242,22 @@ if args.resume and os.path.exists(latest_ckpt_path):
 dist.barrier()
 trigger_times = 0
 max_acc = 0.0
+all_embeddings = []
+all_cov_embeddings = []
+embed_dim_saved = False
+all_labels = []
 
 for i in range(start_epoch, EPOCHS + 1):
+    all_cov_embeddings.clear()
+    all_labels.clear()
     train_loader.sampler.set_epoch(i)
     model.train()
     dist.barrier()
     running_loss = 0.0
     cum_acc = 0.0
+    all_cov_embeddings = []
+    all_labels = []
+    
     try:
         for index, (data, labels) in enumerate(tqdm(train_loader, desc=f"Epoch {i} - Training")):
             index += 1
@@ -237,9 +274,25 @@ for i in range(start_epoch, EPOCHS + 1):
                 torch.nn.utils.clip_grad_norm_(model.parameters(), int(1e6))
                 optimizer.step()
                 optimizer.zero_grad()
+                with torch.no_grad():
+                    print("saving conv emb")
+                    embeds = model.module.performer(data)
+                    embeddings_after_conv = get_embeddings_after_conv(
+                                                    embeds, 
+                                                    conv_layer=model.module.to_out.conv1, 
+                                                    act_layer=model.module.to_out.act, 
+                                                    device=device)
+                    all_cov_embeddings.append(embeddings_after_conv.cpu().numpy())
+                    all_labels.append(labels.cpu().numpy())
             running_loss += loss.item()
             final = torch.softmax(logits, dim=-1).argmax(dim=-1)
             cum_acc += (final == labels).float().mean().item()
+        
+        all_labels_np = np.concatenate(all_labels)
+        
+        
+        print(f"Epoch {i}: Loss {running_loss/len(train_loader):.4f}, Accuracy {cum_acc/len(train_loader):.4f}")
+    
     except Exception as e:
         print(f"[ERROR] Training failed at epoch {i}: {e}")
         continue
@@ -287,36 +340,7 @@ for i in range(start_epoch, EPOCHS + 1):
             print(f'==  Epoch: {i} | Validation Loss: {val_loss:.6f} | F1 Score: {f1:.6f}  ==', flush=True)
             print(confusion_matrix(truths, predictions))
             print(classification_report(truths, predictions, target_names=label_dict.tolist(), digits=4))
-            if local_rank == 0 and i == (EPOCHS + 1):
-                try:
-                    print("[UMAP] Computing UMAP on validation embeddings...", flush=True)
-                    all_embeds = []
-                    all_labels = []
-
-                    val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
-                    model.eval()
-                    with torch.no_grad():
-                        for data_v, labels_v in tqdm(val_loader, desc="UMAP: Embedding"):
-                            data_v = data_v.to(device)
-                            embeds = model.module.performer(data_v)
-                            embeds = embeds.mean(dim=1).detach().cpu().numpy()
-                            all_embeds.append(embeds)
-                            all_labels.extend(labels_v.numpy())
-
-                        all_embeds = np.vstack(all_embeds)
-                        reducer = umap.UMAP(n_neighbors=15, min_dist=0.1, metric='euclidean', random_state=SEED)
-                        umap_result = reducer.fit_transform(all_embeds)
-
-                        plt.figure(figsize=(10, 8))
-                        scatter = plt.scatter(umap_result[:, 0], umap_result[:, 1], c=all_labels, cmap='Spectral', s=10)
-                        plt.colorbar(scatter, ticks=range(len(label_dict)), label="Cell Types")
-                        plt.title("UMAP of Validation Embeddings")
-                        plt.savefig(os.path.join(ckpt_dir, f"{model_name}_val_umap_epoch{i}.png"), dpi=300)
-                        print(f"[UMAP] UMAP saved to {os.path.join(ckpt_dir, f'{model_name}_val_umap_epoch{i}.png')}", flush=True)
-
-                except Exception as e:
-                    print(f"[ERROR] UMAP visualization failed: {e}", flush=True)
-
+            
         print(f"[DEBUG] Local rank {local_rank}: Finished validation step, predictions shape = {predictions.shape}", flush=True)
         if cur_acc > max_acc:
             max_acc = cur_acc
@@ -328,6 +352,9 @@ for i in range(start_epoch, EPOCHS + 1):
                 break
 
         del predictions, truths
+
+if dist.get_rank() == 0:
+    run_umap_on_all_cov_embeddings(all_cov_embeddings, all_labels_np, i, ckpt_dir, label_dict)
 
 
 if dist.is_initialized():
