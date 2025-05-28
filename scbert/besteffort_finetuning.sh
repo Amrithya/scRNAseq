@@ -2,7 +2,7 @@
 
 #SBATCH --job-name="besteffort_finetune"
 #SBATCH --partition=gpu
-#SBATCH --gres=gpu:2
+#SBATCH --gres=gpu:1
 #SBATCH --ntasks=4
 #SBATCH --cpus-per-task=3
 #SBATCH --hint=nomultithread
@@ -19,7 +19,7 @@ if [ -f ckpts/finetune_latest.pth ]; then
     RESUME_FLAG="--resume"
 fi
 
-CUDA_LAUNCH_BLOCKING=1 poetry run torchrun --nproc_per_node=2 besteffort_finetuning.py \
+CUDA_LAUNCH_BLOCKING=1 poetry run torchrun --nproc_per_node=1 besteffort_finetuning.py \
     --data_path "/data1/data/corpus/Zheng68K.h5ad" \
     --model_path "/data1/data/corpus/panglao_pretrain.pth" \
     --resume $RESUME_FLAG
