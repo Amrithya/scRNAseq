@@ -15,15 +15,18 @@ model = PerformerLM(
     heads=10,
     g2v_position_emb=True
 )
-model.load_state_dict(torch.load("/data1/data/corpus/panglao_pretrain.pth", map_location="cpu")['model_state_dict'])
+ckpt = torch.load("/data1/data/corpus/panglao_pretrain.pth", map_location="cpu")
+model.load_state_dict(ckpt['model_state_dict'])
 model.to(device)
 model.eval()
 
 dummy_input = torch.zeros((1, SEQ_LEN), dtype=torch.long).to(device)
 
 with torch.no_grad():
-    out = model(dummy_input)
-    embeddings = out[:, -1, :].cpu().numpy()
+    token_embeddings = model.token_emb(dummy_input)
+    hidden_states = model.transformer(token_embeddings)
+    last_token_embedding = hidden_states[:, -1, :]
+    embeddings = last_token_embedding.cpu().numpy()
 
-np.save("perfomer_embeddings.npy", embeddings)
+np.save("performer_hidden_embeddings.npy", embeddings)
 print("Saved embeddings shape:", embeddings.shape)
