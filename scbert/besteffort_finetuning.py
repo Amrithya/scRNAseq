@@ -34,7 +34,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--local_rank", "--local-rank", type=int, default=-1)
 parser.add_argument("--bin_num", type=int, default=5)
 parser.add_argument("--gene_num", type=int, default=16906)
-parser.add_argument("--epoch", type=int, default=21)
+parser.add_argument("--epoch", type=int, default=22)
 parser.add_argument("--seed", type=int, default=2021)
 parser.add_argument("--batch_size", type=int, default=4)
 parser.add_argument("--learning_rate", type=float, default=1e-4)
@@ -109,7 +109,7 @@ def get_embeddings_after_conv(x, conv_layer, act_layer, device):
     embeddings_np = x_flat.cpu().numpy()
     return embeddings_np
 
-def run_umap_on_all_cov_embeddings(all_cov_embeddings, labels, epoch, ckpt_dir, label_dict, seed=SEED):
+def run_umap_on_all_cov_embeddings(all_cov_embeddings, labels, ckpt_dir, label_dict, seed=SEED):
     all_cov_embeddings_np = np.vstack(all_cov_embeddings)
 
     reducer = umap.UMAP(n_neighbors=15, min_dist=0.1, metric='euclidean', random_state=seed)
@@ -118,10 +118,10 @@ def run_umap_on_all_cov_embeddings(all_cov_embeddings, labels, epoch, ckpt_dir, 
     plt.figure(figsize=(10, 8))
     scatter = plt.scatter(umap_result[:, 0], umap_result[:, 1], c=labels, cmap='Spectral', s=10)
     plt.colorbar(scatter, ticks=range(len(label_dict)), label="Cell Types")
-    plt.title(f"UMAP of Conv Layer Embeddings - Epoch {epoch}")
-    plt.savefig(os.path.join(ckpt_dir, f"umap_conv_embeddings_epoch{epoch}.png"), dpi=300)
+    plt.title(f"UMAP of Conv Layer Embeddings ")
+    plt.savefig(os.path.join(ckpt_dir, f"umap_conv_embeddings.png"), dpi=300)
     plt.close()
-    print(f"[UMAP] UMAP plot saved to {os.path.join(ckpt_dir, f'umap_conv_embeddings_epoch{epoch}.png')}")
+    print(f"[UMAP] UMAP plot saved to {os.path.join(ckpt_dir, f'umap_conv_embeddings.png')}")
 
 class SCDataset(Dataset):
     def __init__(self, data, label):
@@ -355,7 +355,7 @@ for i in range(start_epoch, EPOCHS + 1):
         del predictions, truths
 
 if dist.get_rank() == 0:
-    run_umap_on_all_cov_embeddings(all_cov_embeddings, all_labels_np, i, ckpt_dir, label_dict)
+    run_umap_on_all_cov_embeddings(all_cov_embeddings, all_labels_np, ckpt_dir, label_dict)
 
 
 if dist.is_initialized():
