@@ -23,9 +23,7 @@ parser.add_argument("--model_name", type=str, default='finetune')
 parser.add_argument("--resume", action="store_true")
 
 args = parser.parse_args()
-rank = int(os.environ["RANK"])
-local_rank = args.local_rank
-is_master = local_rank == 0
+
 
 SEED = args.seed
 EPOCHS = args.epoch
