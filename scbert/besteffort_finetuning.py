@@ -14,7 +14,7 @@ from scipy import sparse
 from sklearn.model_selection import StratifiedShuffleSplit, StratifiedKFold
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, classification_report
 import torch
-import umap
+import umap.umap_ as umap
 import matplotlib.pyplot as plt
 from torch import nn
 from torch.optim import Adam

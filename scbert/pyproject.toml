@@ -18,6 +18,7 @@ einops = "^0.8.1"
 local-attention = "^1.11.1"
 tqdm = "^4.67.1"
 umap = "^0.1.1"
+umap-learn = "^0.5.7"
 
 
 [tool.poetry.dev-dependencies]
