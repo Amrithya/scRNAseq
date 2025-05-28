@@ -42,10 +42,11 @@ adata = sc.read_h5ad(args.data_path)
 X = adata.X
 if hasattr(X, 'toarray'):
     X = X.toarray()
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 X_tokens = (X / X.max() * (CLASS - 1)).astype(np.int64)
 input_tokens_np = X_tokens[:BATCH_SIZE, :SEQ_LEN]
-input_tokens = torch.tensor(input_tokens_np)
+input_tokens = torch.tensor(input_tokens_np, dtype=torch.long).to(device)
 
 model = PerformerLM(
     num_tokens=CLASS,
@@ -58,11 +59,12 @@ model = PerformerLM(
 )
 ckpt = torch.load(args.model_path, map_location='cpu')
 model.load_state_dict(ckpt['model_state_dict'])
+model.to(device)
 model.eval()
 
 with torch.no_grad():
     hidden = model.performer(input_tokens)
 
 print("Hidden representation shape:", hidden.shape)
-learned_representations = hidden.cpu().numpy()
+learned_representations = hidden.cpu()
 torch.save(learned_representations, 'performer_learned_representations.pt')
