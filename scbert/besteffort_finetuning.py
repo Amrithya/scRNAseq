@@ -95,29 +95,6 @@ def signal_handler(signum, frame):
 
 signal.signal(signal.SIGUSR1, signal_handler)
 
-def get_embeddings_after_conv(x, conv_layer, act_layer, device):
-    print(f"Shape get emb conv before: {x.shape}")
-    x = x[:, None, :, :].to(device)
-    x = conv_layer(x)   
-    x = act_layer(x)
-    x_flat = x.view(x.shape[0], -1)
-    embeddings_np = x_flat.cpu().numpy()
-    print(f"Shape get emb conv after: {embeddings_np.shape}")
-    return embeddings_np
-
-def run_umap_on_all_cov_embeddings(all_cov_embeddings, labels, ckpt_dir, label_dict, seed=SEED):
-    all_cov_embeddings_np = np.vstack(all_cov_embeddings)
-
-    reducer = umap.UMAP(n_neighbors=15, min_dist=0.1, metric='euclidean', random_state=seed)
-    umap_result = reducer.fit_transform(all_cov_embeddings_np)
-
-    plt.figure(figsize=(10, 8))
-    scatter = plt.scatter(umap_result[:, 0], umap_result[:, 1], c=labels, cmap='Spectral', s=10)
-    plt.colorbar(scatter, ticks=range(len(label_dict)), label="Cell Types")
-    plt.title(f"UMAP of Conv Layer Embeddings ")
-    plt.savefig(os.path.join(ckpt_dir, f"umap_conv_embeddings.png"), dpi=300)
-    plt.close()
-    print(f"[UMAP] UMAP plot saved to {os.path.join(ckpt_dir, f'umap_conv_embeddings.png')}")
 
 class SCDataset(Dataset):
     def __init__(self, data, label):
@@ -245,16 +222,13 @@ all_labels = []
 all_labels_np = []
 
 for i in range(start_epoch, EPOCHS + 1):
-    all_cov_embeddings.clear()
-    all_labels.clear()
+    
     train_loader.sampler.set_epoch(i)
     model.train()
     dist.barrier()
     running_loss = 0.0
     cum_acc = 0.0
-    all_cov_embeddings = []
-    all_labels = []
-    
+        
     try:
         for index, (data, labels) in enumerate(tqdm(train_loader, desc=f"Epoch {i} - Training")):
             index += 1
@@ -271,23 +245,10 @@ for i in range(start_epoch, EPOCHS + 1):
                 torch.nn.utils.clip_grad_norm_(model.parameters(), int(1e6))
                 optimizer.step()
                 optimizer.zero_grad()
-                with torch.no_grad():
-                    print("saving conv emb")
-                    embeds = model.module.performer(data)
-                    print("model.module.performer(data)",embeds)
-                    embeddings_after_conv = get_embeddings_after_conv(
-                                                    embeds, 
-                                                    conv_layer=model.module.to_out.conv1, 
-                                                    act_layer=model.module.to_out.act, 
-                                                    device=device)
-                    all_cov_embeddings.append(embeddings_after_conv.cpu().numpy())
-                    all_labels.append(labels.cpu().numpy())
+                
             running_loss += loss.item()
             final = torch.softmax(logits, dim=-1).argmax(dim=-1)
-            cum_acc += (final == labels).float().mean().item()
-        
-        all_labels_np = np.concatenate(all_labels)
-        
+            cum_acc += (final == labels).float().mean().item()     
         
         print(f"Epoch {i}: Loss {running_loss/len(train_loader):.4f}, Accuracy {cum_acc/len(train_loader):.4f}")
     
@@ -350,9 +311,6 @@ for i in range(start_epoch, EPOCHS + 1):
                 break
 
         del predictions, truths
-
-    if dist.get_rank() == 0 and i == EPOCHS:
-        run_umap_on_all_cov_embeddings(all_cov_embeddings, all_labels_np, ckpt_dir, label_dict)
 
 
 if dist.is_initialized():
