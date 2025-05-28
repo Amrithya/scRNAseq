@@ -24,7 +24,6 @@ parser.add_argument("--resume", action="store_true")
 
 args = parser.parse_args()
 
-
 SEED = args.seed
 EPOCHS = args.epoch
 BATCH_SIZE = args.batch_size
@@ -45,8 +44,6 @@ if hasattr(X, 'toarray'):
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 X_tokens = (X / X.max() * (CLASS - 1)).astype(np.int64)
-input_tokens_np = X_tokens[:BATCH_SIZE, :SEQ_LEN]
-input_tokens = torch.tensor(input_tokens_np, dtype=torch.long).to(device)
 
 model = PerformerLM(
     num_tokens=CLASS,
@@ -57,18 +54,27 @@ model = PerformerLM(
     local_attn_heads=0,
     g2v_position_emb=POS_EMBED_USING
 )
+
 ckpt = torch.load(args.model_path, map_location='cpu')
 model.load_state_dict(ckpt['model_state_dict'])
 model.to(device)
 model.eval()
 
+all_hidden = []
 with torch.no_grad():
-    embedded = model.token_emb(input_tokens)
-    if hasattr(model, 'pos_emb') and model.pos_emb is not None:
-        embedded += model.pos_emb(embedded)
+    for start_idx in range(0, X_tokens.shape[0], BATCH_SIZE):
+        end_idx = min(start_idx + BATCH_SIZE, X_tokens.shape[0])
+        batch_tokens_np = X_tokens[start_idx:end_idx, :SEQ_LEN]
+        batch_tokens = torch.tensor(batch_tokens_np, dtype=torch.long).to(device)
+        
+        embedded = model.token_emb(batch_tokens)
+        if hasattr(model, 'pos_emb') and model.pos_emb is not None:
+            embedded = embedded + model.pos_emb(embedded)
 
-    hidden = model.performer(embedded)
+        hidden = model.performer(embedded)
+        all_hidden.append(hidden.cpu())
 
-print("Hidden representation shape:", hidden.shape)
-learned_representations = hidden.cpu()
-torch.save(learned_representations, 'performer_learned_representations.pt')
+all_hidden_tensor = torch.cat(all_hidden, dim=0)
+
+print("Final shape of all hidden representations:", all_hidden_tensor.shape)
+torch.save(all_hidden_tensor, 'performer_all_learned_representations.pt')
