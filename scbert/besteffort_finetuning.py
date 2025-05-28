@@ -237,18 +237,10 @@ for i in range(start_epoch, EPOCHS + 1):
             if index % GRADIENT_ACCUMULATION != 0:
                 with model.no_sync():
                     logits = model(data)
-                    if i == EPOCHS:
-                        conv_feats = model.module.to_out.current_conv_output
-                        all_conv_features.append(conv_feats)
-                        all_labels_for_conv.append(labels.cpu())
                     loss = loss_fn(logits, labels)
                     loss.backward()
             if index % GRADIENT_ACCUMULATION == 0:
                 logits = model(data)
-                if i == EPOCHS:
-                    conv_feats = model.module.to_out.current_conv_output
-                    all_conv_features.append(conv_feats)
-                    all_labels_for_conv.append(labels.cpu())
                 loss = loss_fn(logits, labels)
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), int(1e6))
@@ -315,25 +307,3 @@ for i in range(start_epoch, EPOCHS + 1):
 
     dist.barrier()
 
-
-if local_rank == 0 and len(all_conv_features) > 0:
-    print("Concatenating conv features and labels for UMAP...")
-    epoch_conv_features = torch.cat(all_conv_features, dim=0).detach().cpu().numpy()
-    epoch_labels_np = torch.cat(all_labels_for_conv, dim=0).cpu().numpy()
-
-    print(f"Performing UMAP on shape: {epoch_conv_features.shape}")
-    reducer = umap.UMAP(random_state=SEED)
-    embedding = reducer.fit_transform(epoch_conv_features)
-    print(f"UMAP embedding shape: {embedding.shape}")
-
-    plt.figure(figsize=(12, 12))
-    scatter = plt.scatter(embedding[:, 0], embedding[:, 1], c=epoch_labels_np, cmap='Spectral', s=5)
-    plt.colorbar(scatter)
-    plt.title("UMAP of conv features from last epoch training batches")
-    plt.savefig(f'UMAP_{model_name}_epoch_{EPOCHS}.png')
-    plt.close()
-
-    del all_conv_features, all_labels_for_conv, epoch_conv_features, epoch_labels_np, embedding
-    gc.collect()
-
-print("Training and UMAP completed.")

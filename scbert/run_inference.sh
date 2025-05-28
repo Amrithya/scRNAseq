@@ -4,9 +4,9 @@
 
 #SBATCH --partition=gpu                     # Partition name
 
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:2
 
-#SBATCH --ntasks-per-node=1
+#SBATCH --ntasks-per-node=2
 
 #SBATCH --cpus-per-task=3
 

@@ -2,11 +2,9 @@ import os
 import argparse
 import numpy as np
 import torch
-import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from performer_pytorch import PerformerLM
 import scanpy as sc
-import pickle as pkl
 
 class SCDataset(Dataset):
     def __init__(self, data, max_val):
@@ -17,7 +15,7 @@ class SCDataset(Dataset):
         full_seq = self.data[index].toarray()[0]
         full_seq[full_seq > self.max_val] = self.max_val
         full_seq = torch.from_numpy(full_seq).long()
-        full_seq = torch.cat((full_seq, torch.tensor([0]))) 
+        full_seq = torch.cat((full_seq, torch.tensor([0])))
         return full_seq
 
     def __len__(self):
@@ -35,12 +33,11 @@ def main():
     args = parser.parse_args()
 
     CLASS = args.bin_num + 2
-    SEQ_LEN = args.gene_num + 1 
+    SEQ_LEN = args.gene_num + 1
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     adata = sc.read_h5ad(args.data_path)
-    print(f"Loaded {adata.shape} from {args.data_path}")
     dataset = SCDataset(adata.X, max_val=CLASS - 2)
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=False)
 
@@ -61,13 +58,15 @@ def main():
     with torch.no_grad():
         for batch in dataloader:
             batch = batch.to(device)
-            out = model(batch) 
-            embeddings = out[:, -1, :]  
-            all_embeddings.append(embeddings.cpu())
+            token_embeddings = model.token_emb(batch)
+            hidden_states = model.transformer(token_embeddings)
+            hidden_states = hidden_states[:, :-1, :]
+            embeddings_2d = hidden_states.mean(dim=2)
+            all_embeddings.append(embeddings_2d.cpu())
 
     all_embeddings = torch.cat(all_embeddings).numpy()
     np.save(args.output_path, all_embeddings)
-    print(f"Saved embeddings to {args.output_path}")
+    print(f"Saved embeddings to {args.output_path}, shape: {all_embeddings.shape}")
 
 if __name__ == "__main__":
     main()
