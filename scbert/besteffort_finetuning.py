@@ -96,13 +96,7 @@ def signal_handler(signum, frame):
 signal.signal(signal.SIGUSR1, signal_handler)
 
 def get_embeddings_after_conv(x, conv_layer, act_layer, device):
-    if x.ndim == 3:
-        x = x.mean(dim=1)  
-    elif x.ndim == 2:
-        pass
-    else:
-        raise ValueError(f"shape error {x.shape}")
-    x = x.unsqueeze(1).unsqueeze(2).to(device)
+    x = x[:, None, :, :].to(device)
     x = conv_layer(x)   
     x = act_layer(x)
     x_flat = x.view(x.shape[0], -1)
