@@ -246,6 +246,7 @@ all_embeddings = []
 all_cov_embeddings = []
 embed_dim_saved = False
 all_labels = []
+all_labels_np = []
 
 for i in range(start_epoch, EPOCHS + 1):
     all_cov_embeddings.clear()
