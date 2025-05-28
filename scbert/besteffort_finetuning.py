@@ -297,7 +297,7 @@ for i in range(start_epoch, EPOCHS + 1):
     except Exception as e:
         print(f"[ERROR] Training failed at epoch {i}: {e}")
         continue
-
+       
     epoch_loss = running_loss / index
     epoch_acc = 100 * cum_acc / index
     epoch_loss = get_reduced(epoch_loss, local_rank, 0, world_size)
@@ -354,8 +354,8 @@ for i in range(start_epoch, EPOCHS + 1):
 
         del predictions, truths
 
-if dist.get_rank() == 0:
-    run_umap_on_all_cov_embeddings(all_cov_embeddings, all_labels_np, ckpt_dir, label_dict)
+    if dist.get_rank() == 0 and i == EPOCHS:
+        run_umap_on_all_cov_embeddings(all_cov_embeddings, all_labels_np, ckpt_dir, label_dict)
 
 
 if dist.is_initialized():
