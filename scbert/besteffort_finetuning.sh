@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --job-name="besteffort_finetune"
-#SBATCH --partition=besteffort
+#SBATCH --partition=gpu
 #SBATCH --gres=gpu:2
 #SBATCH --ntasks=4
 #SBATCH --cpus-per-task=3
