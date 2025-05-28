@@ -12,7 +12,7 @@
 
 #SBATCH --hint=nomultithread
 
-#SBATCH --time=08:00:00                     # Max runtime (HH:MM:SS)
+#SBATCH --time=24:00:00                     # Max runtime (HH:MM:SS)
 
 #SBATCH --output=results/inference_%A_%a.out    # STDOUT file
 
