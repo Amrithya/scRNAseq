@@ -18,7 +18,7 @@
 
 #SBATCH --error=results/inference_%A_%a.err     # STDERR file
 
-CUDA_LAUNCH_BLOCKING=1 poetry run torchrun --nproc_per_node=1 inference.py
+CUDA_LAUNCH_BLOCKING=1 poetry run inference.py
 
 echo "All Done!"
 wait
