@@ -16,7 +16,7 @@ if len(rep_np.shape) == 3:
 
 adata = sc.read_h5ad('/data1/data/corpus/Zheng68K.h5ad')
 print("Available columns in adata.obs:", adata.obs.columns)
-labels = adata.obs['cell_type'].values
+labels = adata.obs['celltype'].values
 
 reducer = umap.UMAP(n_neighbors=15, min_dist=0.1, metric='euclidean')
 embedding = reducer.fit_transform(rep_np)
