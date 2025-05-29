@@ -7,7 +7,7 @@ import umap.umap_ as umap
 import torch
 import matplotlib.pyplot as plt
 
-representations = torch.load('performer_learned_representations.pt')
+representations = torch.load('performer_cls_representations.pt')
 
 rep_np = representations.cpu().numpy()
 
