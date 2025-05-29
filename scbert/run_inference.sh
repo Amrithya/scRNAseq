@@ -18,7 +18,7 @@
 
 #SBATCH --error=results/inference_%A_%a.err     # STDERR file
 
-CUDA_LAUNCH_BLOCKING=1 poetry run inference.py
+CUDA_LAUNCH_BLOCKING=1 poetry run python inference.py
 
 echo "All Done!"
 wait
