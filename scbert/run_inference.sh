@@ -4,9 +4,9 @@
 
 #SBATCH --partition=besteffort                     # Partition name
 
-#SBATCH --gres=gpu:4
+#SBATCH --gres=gpu:1
 
-#SBATCH --ntasks=2
+#SBATCH --ntasks=1
 
 #SBATCH --cpus-per-task=3
 
@@ -18,7 +18,7 @@
 
 #SBATCH --error=results/inference_%A_%a.err     # STDERR file
 
-CUDA_LAUNCH_BLOCKING=1 poetry run torchrun --nproc_per_node=4 inference.py
+CUDA_LAUNCH_BLOCKING=1 poetry run torchrun --nproc_per_node=1 inference.py
 
 echo "All Done!"
 wait
