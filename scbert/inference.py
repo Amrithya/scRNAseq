@@ -21,7 +21,12 @@ CLASS = args.bin_num + 2
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 adata = sc.read_h5ad(args.data_path)
-data_tensor = torch.tensor(adata.X.toarray()).float()
+expression = adata.X.toarray()
+bin_edges = np.histogram_bin_edges(expression, bins=args.bin_num)
+tokenized = np.digitize(expression, bins=bin_edges, right=False)
+cls_token = np.zeros((tokenized.shape[0], 1), dtype=np.int64)
+tokenized = np.hstack([cls_token, tokenized])
+data_tensor = torch.tensor(tokenized, dtype=torch.long)
 
 model = PerformerLM(
     num_tokens=CLASS,
