@@ -7,21 +7,13 @@ import scanpy as sc
 from tqdm import tqdm
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--local_rank", "--local-rank", type=int, default=-1)
 parser.add_argument("--bin_num", type=int, default=5)
 parser.add_argument("--gene_num", type=int, default=16906)
-parser.add_argument("--epoch", type=int, default=1)
-parser.add_argument("--seed", type=int, default=2021)
-parser.add_argument("--batch_size", type=int, default=4)
-parser.add_argument("--learning_rate", type=float, default=1e-4)
-parser.add_argument("--grad_acc", type=int, default=60)
-parser.add_argument("--valid_every", type=int, default=1)
+parser.add_argument("--batch_size", type=int, default=8)
 parser.add_argument("--pos_embed", type=bool, default=True)
 parser.add_argument("--data_path", type=str, default='/data1/data/corpus/Zheng68K.h5ad')
 parser.add_argument("--model_path", type=str, default='/data1/data/corpus/panglao_pretrain.pth')
-parser.add_argument("--ckpt_dir", type=str, default='./ckpts/')
-parser.add_argument("--model_name", type=str, default='finetune')
-parser.add_argument("--resume", action="store_true")
+parser.add_argument("--output_path", type=str, default='performer_cls_representations.pt')
 args = parser.parse_args()
 
 SEQ_LEN = args.gene_num + 1
@@ -50,7 +42,7 @@ model.load_state_dict(ckpt['model_state_dict'])
 model.to(device)
 model.eval()
 
-all_hidden = []
+all_cls_reps = []
 with torch.no_grad():
     for start_idx in tqdm(range(0, X_tokens.shape[0], args.batch_size), desc="Running inference"):
         end_idx = min(start_idx + args.batch_size, X_tokens.shape[0])
@@ -60,9 +52,10 @@ with torch.no_grad():
         if hasattr(model, 'pos_emb') and model.pos_emb is not None:
             embedded += model.pos_emb(embedded)
         hidden = model.performer(embedded)
-        all_hidden.append(hidden.cpu())
+        cls_hidden = hidden[:, 0, :]
+        all_cls_reps.append(cls_hidden.cpu())
         torch.cuda.empty_cache()
 
-all_hidden_tensor = torch.cat(all_hidden, dim=0)
-print("Final shape of all hidden representations:", all_hidden_tensor.shape)
-torch.save(all_hidden_tensor, 'performer_all_learned_representations.pt')
+all_hidden_tensor = torch.cat(all_cls_reps, dim=0)
+print("Final shape of CLS hidden representations:", all_hidden_tensor.shape)
+torch.save(all_hidden_tensor, args.output_path)
