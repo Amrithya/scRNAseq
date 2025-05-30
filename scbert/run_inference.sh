@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name="inference"          # Job Name
+#SBATCH --job-name="conv1d_representations"          # Job Name
 
 #SBATCH --partition=besteffort                     # Partition name
 
@@ -14,9 +14,9 @@
 
 #SBATCH --time=24:00:00                     # Max runtime (HH:MM:SS)
 
-#SBATCH --output=results/inference_%A_%a.out    # STDOUT file
+#SBATCH --output=results/conv1d_representations_%A_%a.out    # STDOUT file
 
-#SBATCH --error=results/inference_%A_%a.err     # STDERR file
+#SBATCH --error=results/conv1d_representations_%A_%a.err     # STDERR file
 
 CUDA_LAUNCH_BLOCKING=1 poetry run python inference.py
 

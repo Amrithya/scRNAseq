@@ -2,6 +2,7 @@ import os
 import argparse
 import numpy as np
 import torch
+import torch.nn as nn
 from performer_pytorch import PerformerLM
 import scanpy as sc
 from tqdm import tqdm
@@ -13,7 +14,7 @@ parser.add_argument("--batch_size", type=int, default=8)
 parser.add_argument("--pos_embed", type=bool, default=True)
 parser.add_argument("--data_path", type=str, default='/data1/data/corpus/Zheng68K.h5ad')
 parser.add_argument("--model_path", type=str, default='/data1/data/corpus/panglao_pretrain.pth')
-parser.add_argument("--output_path", type=str, default='/data1/data/corpus/performer_representations')
+parser.add_argument("--output_path", type=str, default='/data1/data/corpus/conv1d_representations.npy')
 args = parser.parse_args()
 
 SEQ_LEN = args.gene_num + 1
@@ -42,23 +43,21 @@ model.load_state_dict(ckpt['model_state_dict'])
 model.to(device)
 model.eval()
 
-all_outputs = []
-chunk_size = 1000
-os.makedirs(os.path.dirname(args.output_path), exist_ok=True)
+conv1 = nn.Conv2d(1, 1, (1, 200)).to(device)
 
+all_outputs = []
 with torch.no_grad():
     for i in tqdm(range(0, len(data_tensor), args.batch_size)):
         batch = data_tensor[i:i + args.batch_size].to(device)
-        output = model(batch)
-        cls_output = output[:, 0, :]
-        all_outputs.append(cls_output.cpu())
-        if len(all_outputs) * args.batch_size >= chunk_size:
-            chunk = torch.cat(all_outputs, dim=0)
-            torch.save(chunk, f'{args.output_path}_chunk_{i // chunk_size}.pt')
-            all_outputs = []
+        output = model(batch)  # (B, S, D) 
+        output = output.unsqueeze(1)  
+        reduced = conv1(output).squeeze(1).squeeze(-1)  # (B, S)
+        all_outputs.append(reduced.cpu())
 
-if len(all_outputs) > 0:
-    final_chunk = torch.cat(all_outputs, dim=0)
-    torch.save(final_chunk, f'{args.output_path}_final.pt')
+final_output = torch.cat(all_outputs, dim=0).numpy()  # (N, S)
+print("Final output shape:", final_output.shape)
+
+os.makedirs(os.path.dirname(args.output_path), exist_ok=True)
+np.save(args.output_path, final_output)
 
 print("All outputs saved successfully!")
