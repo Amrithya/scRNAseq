@@ -18,9 +18,17 @@
 
 #SBATCH --error=results/scBERT_freeze_%A_%a.err     # STDERR file
 
-CUDA_LAUNCH_BLOCKING=1 poetry run torchrun --nproc_per_node=4  finetune_freeze.py \
-          --data_path "/data1/data/corpus/Zheng68K.h5ad" \
-            --model_path "/data1/data/corpus/panglao_pretrain.pth"
+
+RESUME_FLAG=""
+if [ -f ckpts/only_classifer_latest.pth ]; then
+    echo "Checkpoint found. Resuming training..."
+    RESUME_FLAG="--resume"
+fi
+
+CUDA_LAUNCH_BLOCKING=1 poetry run torchrun --nproc_per_node=2 finetune_freeze.py \
+    --data_path "/data1/data/corpus/Zheng68K.h5ad" \
+    --model_path "/data1/data/corpus/panglao_pretrain.pth" \
+    --resume $RESUME_FLAG
 
 echo "All Done!"
 wait
