@@ -2,7 +2,7 @@
 
 #SBATCH --job-name="conv1d_representations"          # Job Name
 
-#SBATCH --partition=besteffort                     # Partition name
+#SBATCH --partition=gpu                     # Partition name
 
 #SBATCH --gres=gpu:1
 
