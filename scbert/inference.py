@@ -2,10 +2,11 @@ import os
 import argparse
 import numpy as np
 import torch
-import torch.nn as nn
 from performer_pytorch import PerformerLM
 import scanpy as sc
 from tqdm import tqdm
+import umap.umap_ as umap
+import matplotlib.pyplot as plt
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--bin_num", type=int, default=5)
@@ -21,19 +22,11 @@ SEQ_LEN = args.gene_num + 1
 CLASS = args.bin_num + 2
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-
 adata = sc.read_h5ad(args.data_path)
-expression = adata.X.toarray()
-bin_edges = np.histogram_bin_edges(expression, bins=args.bin_num)
-tokenized = np.digitize(expression, bins=bin_edges, right=False)
-np_token = np.zeros((tokenized.shape[0], 1), dtype=np.int64)
-tokenized = np.hstack([np_token, tokenized])
-data_tensor = torch.tensor(tokenized, dtype=torch.long)
-
 
 model = PerformerLM(
     num_tokens=CLASS,
-    dim=200,  
+    dim=200,
     depth=6,
     max_seq_len=SEQ_LEN,
     heads=10,
@@ -45,23 +38,46 @@ model.load_state_dict(ckpt['model_state_dict'])
 model.to(device)
 model.eval()
 
-conv1 = nn.Conv2d(1, 1, kernel_size=(1, 200)).to(device)
+def tokn_expression(expr, num_classes):
+    expr_min = expr.min(axis=1, keepdims=True)
+    expr_max = expr.max(axis=1, keepdims=True)
+    expr_norm = (expr - expr_min) / (expr_max - expr_min + 1e-8)
+    tokens = (expr_norm * (num_classes - 1)).astype(np.int64)
+    return tokens
 
-all_outputs = []
-with torch.no_grad():
-    for i in tqdm(range(0, len(data_tensor), args.batch_size)):
-        batch = data_tensor[i:i + args.batch_size].to(device)
-        output = model(batch)
-        print(f"Model output shape: {output.shape}")
-        reduced_mean = output.mean(dim=-1)
-        #output = output.unsqueeze(1)  
-        #reduced = conv1(output).squeeze(1).squeeze(-1)
-        all_outputs.append(reduced_mean.cpu())
+X = adata.X if isinstance(adata.X, np.ndarray) else adata.X.toarray()
+tokens = tokn_expression(X, CLASS)
 
-final_output = torch.cat(all_outputs, dim=0).numpy()
-print("Final output shape:", final_output.shape)
-print(f"Memory usage: {final_output.nbytes / (1024 ** 2):.2f} MB")
+cls_token = np.zeros((tokens.shape[0], 1), dtype=np.int64)
+tokens = np.concatenate([cls_token, tokens], axis=1)
 
-os.makedirs(os.path.dirname(args.output_path), exist_ok=True)
-np.save(args.output_path, final_output)
-print("All outputs saved successfully!")
+batch_size = args.batch_size
+all_cls_embeddings = []
+
+for i in tqdm(range(0, tokens.shape[0], batch_size)):
+    batch_tokens = tokens[i:i+batch_size]
+    batch_tokens = torch.tensor(batch_tokens).to(device)
+
+    with torch.no_grad():
+        output = model(batch_tokens)
+        cls_embedding = output[:, 0, :].cpu().numpy()
+        all_cls_embeddings.append(cls_embedding)
+
+all_cls_embeddings = np.vstack(all_cls_embeddings)
+np.save(args.output_path, all_cls_embeddings)
+
+reducer = umap.UMAP()
+embedding_2d = reducer.fit_transform(all_cls_embeddings)
+
+labels = adata.obs.get('label')
+if labels is None:
+    labels = np.zeros(len(embedding_2d))
+
+plt.figure(figsize=(8, 6))
+scatter = plt.scatter(embedding_2d[:, 0], embedding_2d[:, 1], c=labels.astype('category').cat.codes if hasattr(labels, 'cat') else labels, cmap='tab10', s=5)
+plt.colorbar(scatter)
+plt.title('UMAP of CLS token embeddings')
+plt.xlabel('UMAP1')
+plt.ylabel('UMAP2')
+plt.tight_layout()
+plt.show()
