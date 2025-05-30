@@ -14,7 +14,7 @@
 echo $CUDA_VISIBLE_DEVICES
 
 RESUME_FLAG=""
-if [ -f ckpts/finetune_latest.pth ]; then
+if [ -f ckpts/only_classifer.pth ]; then
     echo "Checkpoint found. Resuming training..."
     RESUME_FLAG="--resume"
 fi
