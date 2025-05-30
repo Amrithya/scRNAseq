@@ -26,8 +26,8 @@ adata = sc.read_h5ad(args.data_path)
 expression = adata.X.toarray()
 bin_edges = np.histogram_bin_edges(expression, bins=args.bin_num)
 tokenized = np.digitize(expression, bins=bin_edges, right=False)
-cls_token = np.zeros((tokenized.shape[0], 1), dtype=np.int64)
-tokenized = np.hstack([cls_token, tokenized])
+np_token = np.zeros((tokenized.shape[0], 1), dtype=np.int64)
+tokenized = np.hstack([np_token, tokenized])
 data_tensor = torch.tensor(tokenized, dtype=torch.long)
 
 
