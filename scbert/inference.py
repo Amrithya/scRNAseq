@@ -21,6 +21,7 @@ SEQ_LEN = args.gene_num + 1
 CLASS = args.bin_num + 2
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+
 adata = sc.read_h5ad(args.data_path)
 expression = adata.X.toarray()
 bin_edges = np.histogram_bin_edges(expression, bins=args.bin_num)
@@ -29,9 +30,10 @@ cls_token = np.zeros((tokenized.shape[0], 1), dtype=np.int64)
 tokenized = np.hstack([cls_token, tokenized])
 data_tensor = torch.tensor(tokenized, dtype=torch.long)
 
+
 model = PerformerLM(
     num_tokens=CLASS,
-    dim=200,
+    dim=200,  
     depth=6,
     max_seq_len=SEQ_LEN,
     heads=10,
@@ -43,21 +45,21 @@ model.load_state_dict(ckpt['model_state_dict'])
 model.to(device)
 model.eval()
 
-conv1 = nn.Conv2d(1, 1, (1, 200)).to(device)
+conv1 = nn.Conv2d(1, 1, kernel_size=(1, 200)).to(device)
 
 all_outputs = []
 with torch.no_grad():
     for i in tqdm(range(0, len(data_tensor), args.batch_size)):
         batch = data_tensor[i:i + args.batch_size].to(device)
-        output = model(batch)  # (B, S, D) 
+        output = model(batch)  
         output = output.unsqueeze(1)  
-        reduced = conv1(output).squeeze(1).squeeze(-1)  # (B, S)
+        reduced = conv1(output).squeeze(1).squeeze(-1)
         all_outputs.append(reduced.cpu())
 
-final_output = torch.cat(all_outputs, dim=0).numpy()  # (N, S)
+final_output = torch.cat(all_outputs, dim=0).numpy()
 print("Final output shape:", final_output.shape)
+print(f"Memory usage: {final_output.nbytes / (1024 ** 2):.2f} MB")
 
 os.makedirs(os.path.dirname(args.output_path), exist_ok=True)
 np.save(args.output_path, final_output)
-
 print("All outputs saved successfully!")
