@@ -51,10 +51,12 @@ all_outputs = []
 with torch.no_grad():
     for i in tqdm(range(0, len(data_tensor), args.batch_size)):
         batch = data_tensor[i:i + args.batch_size].to(device)
-        output = model(batch)  
-        output = output.unsqueeze(1)  
-        reduced = conv1(output).squeeze(1).squeeze(-1)
-        all_outputs.append(reduced.cpu())
+        output = model(batch)
+        print(f"Model output shape: {output.shape}")
+        reduced_mean = output.mean(dim=-1)
+        #output = output.unsqueeze(1)  
+        #reduced = conv1(output).squeeze(1).squeeze(-1)
+        all_outputs.append(reduced_mean.cpu())
 
 final_output = torch.cat(all_outputs, dim=0).numpy()
 print("Final output shape:", final_output.shape)
