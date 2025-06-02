@@ -179,3 +179,4 @@ cython_debug/
 *.out
 *.err
 *.pt
+*.csv
