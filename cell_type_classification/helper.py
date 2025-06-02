@@ -34,7 +34,7 @@ def load_data(samp,cluster):
                 
                 adata_train = sc.read_h5ad(train_path)
                 adata_test = sc.read_h5ad(test_path)
-
+                le = LabelEncoder()
                 X_train = adata_train.X
                 y_train = adata_train.obs['label'].values
                 print(f"X_train shape: {X_train.shape}")
