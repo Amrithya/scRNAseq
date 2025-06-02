@@ -481,7 +481,7 @@ def do_n_smote(X, y, k_neighbors):
     print(f"y shape: {y_train.shape}")
     print("Class distribution after SMOTE:")
     print(pd.Series(y_train).value_counts())
-    adata.write(f'/data1/data/corpus/Zheng68K_smote_data{k_neighbors}.h5ad')
+    #adata.write(f'/data1/data/corpus/Zheng68K_smote_data{k_neighbors}.h5ad')
     return X_train, y_train
         
 
