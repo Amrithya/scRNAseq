@@ -111,11 +111,11 @@ def preprocess_data(adata, samp, cluster):
 
     X, y,le = log_norm(adata)
     if samp == False :
-        X_balanced, y_balanced, X_test, y_test = split_data(X,y)
+        X_train, y_train, X_test, y_test = split_data(X,y)
     else:
         X_train, y_train, X_test, y_test = split_data(X,y)
-        X_balanced, y_balanced = do_smote(X_train, y_train)
-    return X_balanced, y_balanced, X_test, y_test, le
+        X_train, y_train = do_smote(X_train, y_train)
+    return X_train, y_train, X_test, y_test, le
 
 def preprocess_data_nn(device, X_train, y_train, X_test, y_test, le):
     print("Preprocessing data for neural network")
@@ -353,23 +353,23 @@ def do_smote(X, y):
         Class labels.
     Returns:
     --------
-    X_balanced, y_balanced
+    X_train, y_train
     """
 
     print("Before SMOTE:")
     print(f"X shape: {X.shape}")
     print(f"y shape: {y.shape}")
     smote = SMOTE(random_state=2022)
-    X_balanced, y_balanced = smote.fit_resample(X, y)
-    adata = ad.AnnData(X_balanced)
-    adata.obs['label'] = pd.Categorical(y_balanced)
+    X_train, y_train = smote.fit_resample(X, y)
+    adata = ad.AnnData(X_train)
+    adata.obs['label'] = pd.Categorical(y_train)
     print("After SMOTE:")
-    print(f"X shape: {X_balanced.shape}")
-    print(f"y shape: {y_balanced.shape}")
+    print(f"X shape: {X_train.shape}")
+    print(f"y shape: {y_train.shape}")
     print("Class distribution after SMOTE:")
-    print(pd.Series(y_balanced).value_counts())
+    print(pd.Series(y_train).value_counts())
     adata.write('/data1/data/corpus/pbmc68k_balanced_data2.h5ad')
-    return X_balanced, y_balanced
+    return X_train, y_train
         
 
 def shap_explain(clf, X_train, X_test, model):
