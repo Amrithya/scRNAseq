@@ -25,11 +25,11 @@ from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, precisio
 
 def load_data(samp,cluster, smote):
     if smote:
-        adata = sc.read_h5ad('/data1/data/corpus/Zheng68K.h5ad')
-        X, y,le = log_norm(adata)
-        X_train, y_train, X_test, y_test = split_data(X,y)
         k_values = [5, 10, 15, 20, 25, 30]
         for k in k_values:
+            adata = sc.read_h5ad('/data1/data/corpus/Zheng68K.h5ad')
+            X, y,le = log_norm(adata)
+            X_train, y_train, X_test, y_test = split_data(X,y)
             X_train, y_train = do_n_smote(X_train, y_train, k_neighbors=k)      
             lr = train_logistic_regression(X_train, y_train)
             evaluate_model_smote(lr, X_train, y_train,le,"train","lr",k)
