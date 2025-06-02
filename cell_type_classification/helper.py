@@ -26,8 +26,8 @@ from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, precisio
 def load_data(samp,cluster):
     if cluster:
         if samp:
-            if os.path.exists('/data1/data/corpus/pbmc68k_balanced_data2.h5ad'):
-                file_path = '/data1/data/corpus/pbmc68k_balanced_data2.h5ad'
+            if os.path.exists('/data1/data/corpus/pbmc68k_smote_data.h5ad'):
+                file_path = '/data1/data/corpus/pbmc68k_smote_data.h5ad'
                 print("Loading balanced and preprocessed data on cluster")
                 adata = sc.read_h5ad(file_path)
                 X = adata.X
@@ -47,7 +47,7 @@ def load_data(samp,cluster):
     else:
         current_dir = os.path.dirname(os.path.abspath(__file__))
         if samp:
-            file_path = os.path.join(current_dir, '..', 'data', 'pbmc68k_balanced_data2.h5ad')
+            file_path = os.path.join(current_dir, '..', 'data', 'pbmc68k_smote_data.h5ad')
             if os.path.exists(file_path):
                 print("Loading balanced and preprocessed data on local")
                 adata = sc.read_h5ad(file_path)
@@ -99,9 +99,9 @@ def preprocess_data(adata, samp, cluster):
     if samp == False :
         X_train, y_train, X_test, y_test = split_data(X,y)
     else:
-        X_balanced, y_balanced = do_smote(X, y)
         X_train, y_train, X_test, y_test = split_data(X_balanced,y_balanced)
-    return X_train, y_train, X_test, y_test, le
+        X_balanced, y_balanced = do_smote(X_train, y_train)
+    return X_balanced, y_balanced, X_test, y_test, le
 
 def preprocess_data_nn(device, X_train, y_train, X_test, y_test, le):
     print("Preprocessing data for neural network")
