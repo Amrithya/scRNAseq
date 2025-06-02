@@ -289,7 +289,14 @@ def evaluate_model(clf, X, y, label_encoder=None, mode="",model="",samp=""):
         results['Macro Precision'] = [precision_score(y, y_pred, average='macro')]
         results['Micro Recall'] = [recall_score(y, y_pred, average='micro')]
         results['Macro Recall'] = [recall_score(y, y_pred, average='macro')]
+    
     df = pd.DataFrame(results)
+    columns = [
+    'Overall Accuracy', 'Macro Accuracy', 'Micro F1', 'Macro F1',
+    'Micro Precision', 'Macro Precision', 'Micro Recall', 'Macro Recall'
+    ]   
+    for col in columns:
+        print(f"{col}: {df[col].iloc[0]}")
 
     results_file = os.path.join(results_dir, f"results_file_{model}_{'smote' if samp else 'raw'}.csv")
     if os.path.exists(results_file):
