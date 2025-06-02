@@ -39,7 +39,7 @@ def load_data(samp,cluster, smote):
             adata_test.write(f"/data1/data/corpus/Zheng68K_smote_data_test_{k}.h5ad")
             lr = train_logistic_regression(X_train, y_train)
             evaluate_model_smote(lr, X_train, y_train,le,"train","lr",k)
-            evaluate_model_smote(lr, X_train, y_train,le,"test","lr",k)
+            evaluate_model_smote(lr, X_test, y_test,le,"test","lr",k)
         exit()
     if cluster:
         if samp:
@@ -356,7 +356,6 @@ def evaluate_model_smote(clf, X, y, label_encoder=None, mode="", model="", k=Non
     base_dir = os.path.dirname(os.path.abspath(__file__))
     results_dir = os.path.join(base_dir, 'results')
     os.makedirs(results_dir, exist_ok=True)
-    os.makedirs(results_dir, exist_ok=True)
     
     class_accuracies = {}
     for label in np.unique(y):
@@ -380,6 +379,8 @@ def evaluate_model_smote(clf, X, y, label_encoder=None, mode="", model="", k=Non
     df = pd.DataFrame(results)
     
     results_file = os.path.join(results_dir, f"results_file_{model}_{k}.csv")
+    if os.path.exists(results_file):
+        os.remove(results_file)
     df.to_csv(results_file, mode='a', header=not os.path.exists(results_file), index=False)
     
     print(f"Results saved to {results_file}")
