@@ -98,14 +98,13 @@ if __name__ == "__main__":
                                 action='store_true',
                                 help='dataset file location')
     
-    cmdline_parser.add_argument('-s', '--output',
-                                default="evaluation_results.csv",
-                                help='output_file',
-                                type=str)
+    cmdline_parser.add_argument('-s', '--smote',
+                                action='store_true',
+                                help='smote' )
     
     args, unknowns = cmdline_parser.parse_known_args()
 
-    X_train, y_train, X_test, y_test, le = h.load_data(args.samp, args.cluster)
+    X_train, y_train, X_test, y_test, le = h.load_data(args.samp, args.cluster, args.smote)
     print("Data loaded successfully.")
 
     if args.model == "nn":

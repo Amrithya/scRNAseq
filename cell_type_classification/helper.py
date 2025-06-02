@@ -23,7 +23,18 @@ from sklearn.utils.class_weight import compute_class_weight
 from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, precision_score, recall_score 
 
 
-def load_data(samp,cluster):
+def load_data(samp,cluster, smote):
+    if smote:
+        adata = sc.read_h5ad('/data1/data/corpus/Zheng68K.h5ad')
+        X, y,le = log_norm(adata)
+        X_train, y_train, X_test, y_test = split_data(X,y)
+        k_values = [5, 10, 15, 20, 25, 30]
+        for k in k_values:
+            X_train, y_train = do_n_smote(X, y, k_neighbors=k)      
+            lr = train_logistic_regression(X_train, y_train)
+            evaluate_model_smote(lr, X_train, y_train,le,"train","lr",k)
+            evaluate_model_smote(lr, X_train, y_train,le,"test","lr",k)
+        exit()
     if cluster:
         if samp:
             train_path = '/data1/data/corpus/Zheng68K_smote_data_train.h5ad'
@@ -298,6 +309,75 @@ def evaluate_model(clf, X, y, label_encoder=None, mode="",model="",samp=""):
     df.to_csv(results_file, mode='a', header=not os.path.exists(results_file), index=False)
     print(f"Results saved to {results_file}")
 
+def evaluate_model_smote(clf, X, y, label_encoder=None, mode="", model="", k=None):
+    """
+    Evaluate the given model on the data and log the results.
+
+    Parameters:
+    -----------
+    clf : classifier
+        Trained classifier to evaluate.
+    X : array-like
+        Feature matrix.
+    y : array-like
+        True labels.
+    label_encoder : LabelEncoder, optional
+        Used to decode labels for reporting.
+    mode : str
+        "train" or "test", used for tracking output.
+    model : str
+        Model name, e.g. "lr" or "rf".
+    samp : bool or str, optional
+        Whether dataset was downsampled.
+    k : int or str, optional
+        Parameter (e.g. k_neighbors) for tracking purposes.
+
+    Returns:
+    --------
+    None
+    """
+    print(f"Evaluating {model} model on {mode} data")
+    y_pred = clf.predict(X)
+    acc = accuracy_score(y, y_pred)
+    
+    results = {
+        'Mode': [mode],
+        'Overall Accuracy': [acc],
+        'Model': [model],
+        'k': [k]
+    }
+    
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    results_dir = os.path.join(base_dir, 'results')
+    os.makedirs(results_dir, exist_ok=True)
+    os.makedirs(results_dir, exist_ok=True)
+    
+    class_accuracies = {}
+    for label in np.unique(y):
+        label_indices = np.where(y == label)[0]
+        correct_preds = np.sum(y_pred[label_indices] == y[label_indices])
+        class_accuracy = correct_preds / len(label_indices)
+        class_name = label_encoder.inverse_transform([label])[0] if label_encoder else label
+        class_accuracies[class_name] = class_accuracy
+        results[f"{class_name}"] = [class_accuracy]
+
+    if mode == "test":
+        macro_accuracy = np.mean(list(class_accuracies.values()))
+        results['Macro Accuracy'] = [macro_accuracy]
+        results['Micro F1'] = [f1_score(y, y_pred, average='micro')]
+        results['Macro F1'] = [f1_score(y, y_pred, average='macro')]
+        results['Micro Precision'] = [precision_score(y, y_pred, average='micro')]
+        results['Macro Precision'] = [precision_score(y, y_pred, average='macro')]
+        results['Micro Recall'] = [recall_score(y, y_pred, average='micro')]
+        results['Macro Recall'] = [recall_score(y, y_pred, average='macro')]
+    
+    df = pd.DataFrame(results)
+    
+    results_file = os.path.join(results_dir, f"results_file_{model}_{k}.csv")
+    df.to_csv(results_file, mode='a', header=not os.path.exists(results_file), index=False)
+    
+    print(f"Results saved to {results_file}")
+
 def plot_confusion_matrix(y_true, y_pred, label_encoder=None,save_path=None):
 
     """
@@ -313,7 +393,7 @@ def plot_confusion_matrix(y_true, y_pred, label_encoder=None,save_path=None):
         If provided, used to decode class indices to names.
     save_path : str, optional
         If provided, the plot will be saved to this path.
-
+pbmc68k_balanced_data2
     Returns:
     --------
     None
@@ -363,6 +443,39 @@ def do_smote(X, y):
     print("Class distribution after SMOTE:")
     print(pd.Series(y_train).value_counts())
     adata.write('/data1/data/corpus/pbmc68k_balanced_data2.h5ad')
+    return X_train, y_train
+
+def do_n_smote(X, y, k_neighbors):
+    """
+    Apply SMOTE with specified k_neighbors to balance the dataset and train a model.
+
+    Parameters:
+    -----------
+    X : array-like
+        Feature matrix.
+    y : array-like
+        Class labels.
+    k_neighbors : int
+        Number of nearest neighbors for SMOTE.
+
+    Returns:
+    --------
+    X_train, y_train
+    """
+
+    print(f"Before SMOTE with k_neighbors={k_neighbors}:")
+    print(f"X shape: {X.shape}")
+    print(f"y shape: {y.shape}")
+    smote = SMOTE(random_state=2022, k_neighbors=k_neighbors)
+    X_train, y_train = smote.fit_resample(X, y)
+    adata = ad.AnnData(X_train)
+    adata.obs['label'] = pd.Categorical(y_train)
+    print(f"After SMOTE with k_neighbors={k_neighbors}:")
+    print(f"X shape: {X_train.shape}")
+    print(f"y shape: {y_train.shape}")
+    print("Class distribution after SMOTE:")
+    print(pd.Series(y_train).value_counts())
+    adata.write(f'/data1/data/corpus/Zheng68K_smote_data{k_neighbors}.h5ad')
     return X_train, y_train
         
 
