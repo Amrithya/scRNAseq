@@ -30,7 +30,13 @@ def load_data(samp,cluster, smote):
             adata = sc.read_h5ad('/data1/data/corpus/Zheng68K.h5ad')
             X, y,le = log_norm(adata)
             X_train, y_train, X_test, y_test = split_data(X,y)
-            X_train, y_train = do_n_smote(X_train, y_train, k_neighbors=k)      
+            X_train, y_train = do_n_smote(X_train, y_train, k_neighbors=k) 
+            adata_train = sc.AnnData(X_train)
+            adata_train.obs['celltype'] = y_train  
+            adata_test = sc.AnnData(X_test)
+            adata_test.obs['celltype'] = y_test
+            adata_train.write(f"/data1/data/corpus/Zheng68K_smote_data_train_{k}.h5ad")
+            adata_test.write(f"/data1/data/corpus/Zheng68K_smote_data_test_{k}.h5ad")
             lr = train_logistic_regression(X_train, y_train)
             evaluate_model_smote(lr, X_train, y_train,le,"train","lr",k)
             evaluate_model_smote(lr, X_train, y_train,le,"test","lr",k)
