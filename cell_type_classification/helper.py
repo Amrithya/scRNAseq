@@ -26,19 +26,33 @@ from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, precisio
 def load_data(samp,cluster):
     if cluster:
         if samp:
-            if os.path.exists('/data1/data/corpus/Zheng68K_smote_data.h5ad'):
-                file_path = '/data1/data/corpus/Zheng68K_smote_data.h5ad'
+            train_path = '/data1/data/corpus/Zheng68K_smote_data_train.h5ad'
+            test_path = '/data1/data/corpus/Zheng68K_smote_data_test.h5ad'
+
+            if os.path.exists(train_path) and os.path.exists(test_path):
                 print("Loading balanced and preprocessed data on cluster")
-                adata = sc.read_h5ad(file_path)
-                X = adata.X
-                cell_type_series = adata.obs['label']
-                le = LabelEncoder()
-                y = le.fit_transform(cell_type_series)
-                X_train, y_train, X_test, y_test = split_data(X,y)
+                
+                adata_train = sc.read_h5ad(train_path)
+                adata_test = sc.read_h5ad(test_path)
+
+                X_train = adata_train.X
+                y_train = adata_train.obs['label'].values
+                print(f"X_train shape: {X_train.shape}")
+                print(f"y_train shape: {y_train.shape}")
+
+                X_test = adata_test.X
+                y_test = adata_test.obs['label'].values
             else:
                 print("Preprocessing raw data with SMOTE on cluster")
                 adata = sc.read_h5ad('/data1/data/corpus/Zheng68K.h5ad')
                 X_train, y_train, X_test, y_test, le = preprocess_data(adata, samp, cluster)
+                adata_train = sc.AnnData(X_train)
+                adata_train.obs['label'] = y_train  
+                adata_test = sc.AnnData(X_test)
+                adata_test.obs['label'] = y_test
+
+                adata_train.write('/data1/data/corpus/Zheng68K_smote_data_train.h5ad')
+                adata_test.write('/data1/data/corpus/Zheng68K_smote_data_test.h5ad')
         else:
             print("Preprocessing raw data on cluster")
             adata = sc.read_h5ad('/data1/data/corpus/Zheng68K.h5ad')
