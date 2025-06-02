@@ -34,7 +34,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--local_rank", "--local-rank", type=int, default=-1)
 parser.add_argument("--bin_num", type=int, default=5)
 parser.add_argument("--gene_num", type=int, default=16906)
-parser.add_argument("--epoch", type=int, default=23)
+parser.add_argument("--epoch", type=int, default=30)
 parser.add_argument("--seed", type=int, default=2021)
 parser.add_argument("--batch_size", type=int, default=4)
 parser.add_argument("--learning_rate", type=float, default=1e-4)
@@ -251,59 +251,68 @@ for i in range(start_epoch, EPOCHS + 1):
             final = torch.softmax(logits, dim=-1).argmax(dim=-1)
             cum_acc += (final == labels).float().mean().item()     
         
-        print(f"Epoch {i}: Loss {running_loss/len(train_loader):.4f}, Accuracy {cum_acc/len(train_loader):.4f}")
-    
+        print(f"Epoch {i}: Loss {running_loss / len(train_loader)}, Accuracy {cum_acc / len(train_loader)}")
+
     except Exception as e:
-        print(f"[ERROR] Training failed at epoch {i}: {e}")
-        continue
+        print(f"[ERROR] Training loop interrupted: {e}")
+        save_ckpt(i, model, optimizer, scheduler, running_loss / len(train_loader), model_name, ckpt_dir)
+        sys.exit(0)
 
-    epoch_loss = running_loss / index
-    epoch_acc = 100 * cum_acc / index
-    epoch_loss = get_reduced(epoch_loss, local_rank, 0, world_size)
-    epoch_acc = get_reduced(epoch_acc, local_rank, 0, world_size)
-    print(f'==  Epoch: {i} | Training Loss: {epoch_loss:.6f} | Accuracy: {epoch_acc:6.4f}%  ==')
-    dist.barrier()
-    scheduler.step()
+    model.eval()
+    val_acc = 0.0
+    val_loss = 0.0
+    all_val_pred = []
+    all_val_label = []
 
-    if i % VALIDATE_EVERY == 0:
-        print("Inside validation")
-        model.eval()
-        dist.barrier()
-        running_loss = 0.0
-        predictions = []
-        truths = []
-        with torch.no_grad():
-            for index, (data_v, labels_v) in enumerate(tqdm(val_loader, desc=f"Epoch {i} - Validation")):
-                index += 1
-                data_v, labels_v = data_v.to(device), labels_v.to(device)
-                logits = model(data_v)
-                loss = loss_fn(logits, labels_v)
-                running_loss += loss.item()
-                probs = torch.softmax(logits, dim=-1)
-                predictions.extend(probs.cpu().numpy())
-                truths.extend(labels_v.cpu().numpy())
+    with torch.no_grad():
+        for data_v, label_v in tqdm(val_loader, desc=f"Epoch {i} - Validation"):
+            data_v, label_v = data_v.to(device), label_v.to(device)
+            logits_v = model(data_v)
+            loss_v = loss_fn(logits_v, label_v)
+            val_loss += loss_v.item()
+            preds = torch.softmax(logits_v, dim=-1).argmax(dim=-1)
+            all_val_pred.append(preds.cpu())
+            all_val_label.append(label_v.cpu())
+            val_acc += (preds == label_v).float().mean().item()
 
-        val_loss = running_loss / index
-        val_loss = get_reduced(val_loss, local_rank, 0, world_size)
-        print(f"Validation Loss: {val_loss:.6f}")
+    val_acc /= len(val_loader)
+    val_loss /= len(val_loader)
 
-        if local_rank == 0:
-            predictions = np.array(predictions)
-            truths = np.array(truths)
-            val_acc = (predictions.argmax(axis=1) == truths).mean()
-            val_f1 = f1_score(truths, predictions.argmax(axis=1), average='weighted')
-            print(f"Validation Accuracy: {val_acc:.4f}, F1: {val_f1:.4f}")
+    if is_master:
+        print(f"[Validation] Epoch {i}: Loss: {val_loss:.4f}, Accuracy: {val_acc:.4f}")
 
-            if val_loss < max_acc:
-                trigger_times = 0
-            else:
-                trigger_times += 1
-                if trigger_times >= PATIENCE:
-                    print(f"Early stopping at epoch {i}")
-                    save_ckpt(i, model, optimizer, scheduler, val_loss, model_name, ckpt_dir)
-                    break
-            max_acc = max(val_loss, max_acc)
+    if val_acc > max_acc:
+        max_acc = val_acc
+        trigger_times = 0
+        if is_master:
             save_ckpt(i, model, optimizer, scheduler, val_loss, model_name, ckpt_dir)
+    else:
+        trigger_times += 1
+        if trigger_times >= PATIENCE:
+            if is_master:
+                print("[EarlyStopping] Triggered. Stopping training.")
+            break
 
-    dist.barrier()
+model.eval()
+all_embeddings = []
+all_labels = []
 
+with torch.no_grad():
+    for data_v, labels_v in tqdm(val_loader, desc="Extracting validation embeddings after training"):
+        data_v, labels_v = data_v.to(device), labels_v.to(device)
+        _ = model(data_v)
+        conv_feats = model.module.to_out.current_conv_output
+        all_embeddings.append(conv_feats)
+        all_labels.append(labels_v.cpu())
+
+all_embeddings = torch.cat(all_embeddings, dim=0).numpy()
+all_labels = torch.cat(all_labels, dim=0).numpy()
+
+reducer = umap.UMAP(n_neighbors=15, min_dist=0.1, metric='euclidean', random_state=SEED)
+embedding_umap = reducer.fit_transform(all_embeddings)
+
+plt.figure(figsize=(8,6))
+scatter = plt.scatter(embedding_umap[:, 0], embedding_umap[:, 1], c=all_labels, cmap='Spectral', s=5)
+plt.colorbar(scatter)
+plt.title("UMAP projection of validation embeddings (after all epochs)")
+plt.show()
