@@ -30,7 +30,7 @@ def load_data(samp,cluster, smote):
         X_train, y_train, X_test, y_test = split_data(X,y)
         k_values = [5, 10, 15, 20, 25, 30]
         for k in k_values:
-            X_train, y_train = do_n_smote(X, y, k_neighbors=k)      
+            X_train, y_train = do_n_smote(X_train, y_train, k_neighbors=k)      
             lr = train_logistic_regression(X_train, y_train)
             evaluate_model_smote(lr, X_train, y_train,le,"train","lr",k)
             evaluate_model_smote(lr, X_train, y_train,le,"test","lr",k)
