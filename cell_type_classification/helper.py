@@ -25,7 +25,7 @@ from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, precisio
 
 def load_data(samp,cluster, smote):
     if smote:
-        k_values = [5, 10, 15, 20, 25, 30]
+        k_values = [35,40,45,50,55]
         for k in k_values:
             adata = sc.read_h5ad('/data1/data/corpus/Zheng68K.h5ad')
             X, y,le = log_norm(adata)
