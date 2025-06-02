@@ -99,7 +99,7 @@ def preprocess_data(adata, samp, cluster):
     if samp == False :
         X_train, y_train, X_test, y_test = split_data(X,y)
     else:
-        X_train, y_train, X_test, y_test = split_data(X_balanced,y_balanced)
+        X_train, y_train, X_test, y_test = split_data(X,y)
         X_balanced, y_balanced = do_smote(X_train, y_train)
     return X_balanced, y_balanced, X_test, y_test, le
 
