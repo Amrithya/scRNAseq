@@ -53,12 +53,12 @@ def load_data(samp,cluster, smote):
                 adata_test = sc.read_h5ad(test_path)
                 le = LabelEncoder()
                 X_train = adata_train.X
-                y_train = adata_train.obs['label'].values
+                y_train = adata_train.obs['celltype'].values
                 print(f"X_train shape: {X_train.shape}")
                 print(f"y_train shape: {y_train.shape}")
 
                 X_test = adata_test.X
-                y_test = adata_test.obs['label'].values
+                y_test = adata_test.obs['celltype'].values
             else:
                 print("Preprocessing raw data with SMOTE on cluster")
                 adata = sc.read_h5ad('/data1/data/corpus/Zheng68K.h5ad')
@@ -105,7 +105,49 @@ def log_norm(adata):
     le = LabelEncoder()
     y = le.fit_transform(cell_type_series)
     X = adata.X
+    gene_names = adata.var_names
+    feature_importance(X,y,le,gene_names)
     return X, y, le
+
+def feature_importance(X, y, le, gene_names):
+    """
+    Calculate and print feature importance for the given dataset.
+
+    Parameters:
+    -----------
+    X : array-like
+        Feature matrix.
+    y : array-like
+        Class labels.
+    le : LabelEncoder
+        LabelEncoder instance used to decode class names.
+    gene_names : list
+        List of gene names corresponding to features in X.
+
+    Returns:
+    --------
+    None
+    """
+    print("Calculating feature importance")
+    
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    results_dir = os.path.join(base_dir, 'results')
+    os.makedirs(results_dir, exist_ok=True)
+    cls = LogisticRegression(max_iter=1000, multi_class='multinomial', solver='lbfgs')
+    cls.fit(X, y)
+
+    importances = np.mean(np.abs(cls.coef_), axis=0)
+    top_k = 50
+    indices = np.argsort(importances)[-top_k:][::-1]
+    plt.figure(figsize=(10, 12))
+    plt.title('Top 50 Most Important Genes (Logistic Regression)', fontsize=14)
+    plt.barh(range(top_k), importances[indices][::-1], color='green')
+    plt.yticks(range(top_k), gene_names[indices][::-1])
+    plt.xlabel('Mean Absolute Coefficient (Feature Importance)')
+    plt.tight_layout()
+    plot_path = os.path.join(results_dir, 'top_50_gene_importance.png')
+    plt.savefig(plot_path, dpi=300)
+    plt.close()
 
 def preprocess_data(adata, samp, cluster):
 
@@ -449,7 +491,7 @@ def do_smote(X, y):
     print(f"y shape: {y_train.shape}")
     print("Class distribution after SMOTE:")
     print(pd.Series(y_train).value_counts())
-    adata.write('/data1/data/corpus/pbmc68k_balanced_data2.h5ad')
+    #adata.write('/data1/data/corpus/pbmc68k_balanced_data2.h5ad')
     return X_train, y_train
 
 def do_n_smote(X, y, k_neighbors):
@@ -504,16 +546,27 @@ def shap_explain(clf, X_train, X_test, model):
         explainer = shap.Explainer(clf, X_train)
         shap_values = explainer(X_test)
 
-        shap.summary_plot(shap_values, X_test)
-        shap.force_plot(shap_values[0])
-        shap.dependence_plot("mean radius", shap_values, X_test)
+        shap.summary_plot(shap_values, X_test, show=False)
+        plt.savefig(os.path.join(results_dir, "shap_summary_plot.png"), dpi=300, bbox_inches='tight')
+        plt.clf()
+
+        force_plot = shap.force_plot(
+                base_value=explainer.expected_value[0] if isinstance(explainer.expected_value, (list, np.ndarray)) else explainer.expected_value,
+                shap_values=shap_values.values[0],
+                features=X_test.iloc[0],
+                feature_names=X_test.columns)
+        shap.save_html(os.path.join(results_dir, "shap_force_plot.html"), force_plot)
+
+        shap.dependence_plot("mean radius", shap_values.values, X_test, show=False)
+        plt.savefig(os.path.join(results_dir, "shap_dependence_plot.png"), dpi=300, bbox_inches='tight')
+        plt.clf()
 
         shap_df = pd.DataFrame(shap_values.values[:5], columns=X_test.columns)
         shap_df["instance"] = range(1, 6)
         shap_df["method"] = "SHAP"
 
-        results_file = os.path.join(results_dir, f"results_file_{model}_xai.csv")
-        shap_df.to_csv(results_file, index=False)
+        #results_file = os.path.join(results_dir, f"results_file_{model}_xai.csv")
+        #shap_df.to_csv(results_file, index=False)
         return shap_values, model, explainer
 
     except Exception as e:

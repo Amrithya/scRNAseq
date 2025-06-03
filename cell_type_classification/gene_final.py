@@ -38,9 +38,8 @@ def run_model(model,X_train, y_train, X_test, y_test, samp, le):
         lr = h.train_logistic_regression(X_train, y_train)
         h.evaluate_model(lr, X_train, y_train,le,"train",model,samp)
         h.evaluate_model(lr, X_test, y_test,le,"test",model,samp)
-        #h.shap_explain(lr, X_train, X_test,"lr")
+        h.shap_explain(lr, X_train, X_test,"lr")
         #h.lime_explain(lr, X_train, X_test,le,"lr")
-        #h.shap_explainer(lr, X_train, X_test)
     elif model == "rf":
         rf = h.train_rf(X_train, y_train)
         h.evaluate_model(rf, X_train, y_train, le,"train",model,samp)
