@@ -62,14 +62,18 @@ def get_top_genes(adata):
         top_genes = pd.concat([top_genes, top_genes_k], ignore_index=True)
 
         X_train_k = X_train[:, indices]
+        X_test_k = X_test[:, indices]
 
         print(f"X_train_k shape: {X_train_k.shape}, y_train shape: {y_train.shape}")
+        print(f"X_test_k shape: {X_test_k.shape}, y_test shape: {y_test.shape}")
+
 
         cls_k = LogisticRegression(penalty="l1", C=0.1, solver="liblinear", max_iter=1000)
         cls_k.fit(X_train_k, y_train)
 
         y_pred_train_k = cls_k.predict(X_train_k)
-        y_pred_test_k = cls_k.predict(X_test)
+        y_pred_test_k = cls_k.predict(X_test_k)
+
 
         df = pd.DataFrame({
             'top_k': [top_k],
