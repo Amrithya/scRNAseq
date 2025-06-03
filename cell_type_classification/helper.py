@@ -53,12 +53,12 @@ def load_data(samp,cluster, smote):
                 adata_test = sc.read_h5ad(test_path)
                 le = LabelEncoder()
                 X_train = adata_train.X
-                y_train = adata_train.obs['celltype'].values
+                y_train = adata_train.obs['label'].values
                 print(f"X_train shape: {X_train.shape}")
                 print(f"y_train shape: {y_train.shape}")
 
                 X_test = adata_test.X
-                y_test = adata_test.obs['celltype'].values
+                y_test = adata_test.obs['label'].values
             else:
                 print("Preprocessing raw data with SMOTE on cluster")
                 adata = sc.read_h5ad('/data1/data/corpus/Zheng68K.h5ad')
