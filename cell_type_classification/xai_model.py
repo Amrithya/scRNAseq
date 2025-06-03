@@ -52,11 +52,24 @@ def shap_explain(clf, X_test, y_test, feature_names):
 
     shap_values = explainer(X_test[sample_idx].reshape(1, -1))
 
-    if hasattr(shap_values, "values") and shap_values.values.ndim == 2:
+    if hasattr(shap_values, "values"):
+        vals = shap_values.values
+        print(f"shap_values.values shape: {vals.shape}")
         pred_class = y_pred[sample_idx]
-        sample_shap_values = shap_values.values[pred_class]
+        if vals.ndim == 3:
+            num_samples = vals.shape[0]
+            if vals.shape[1] == len(feature_names):
+                sample_shap_values = vals[sample_idx, :, pred_class]
+            elif vals.shape[2] == len(feature_names):
+                sample_shap_values = vals[sample_idx, pred_class, :]
+            else:
+                raise ValueError("Unexpected shape of SHAP values for multiclass")
+        elif vals.ndim == 2:
+            sample_shap_values = vals[sample_idx]
+        else:
+            raise ValueError(f"Unexpected SHAP values ndim: {vals.ndim}")
     else:
-        sample_shap_values = shap_values.values[0]
+        raise ValueError("SHAP values object has no attribute 'values'")
 
     df_shap = pd.DataFrame({
         'feature': feature_names,
