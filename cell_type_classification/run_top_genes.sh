@@ -8,7 +8,7 @@
 #SBATCH --cpus-per-task=3
 #SBATCH --time=24:00:00
 #SBATCH --hint=nomultithread
-#SBATCH --output=results/script_results/ttop_genes_%A_%a.out
+#SBATCH --output=results/script_results/top_genes_%A_%a.out
 #SBATCH --error=results/script_results/top_genes_%A_%a.err
 #SBATCH --array=1
 

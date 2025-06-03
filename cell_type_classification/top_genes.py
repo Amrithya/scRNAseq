@@ -37,7 +37,7 @@ def get_top_genes(adata):
     le = LabelEncoder()
     y = le.fit_transform(adata.obs['celltype'])
 
-    X_train, X_test, y_train, y_test = h.split_data(X, y)
+    X_train, y_train, X_test, y_test = h.split_data(X, y)
 
     y_train = np.array(y_train).ravel()
     y_test = np.array(y_test).ravel()
