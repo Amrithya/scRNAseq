@@ -61,13 +61,14 @@ def get_top_genes(adata):
         top_genes = pd.concat([top_genes, top_genes_k], ignore_index=True)
 
         X_train_k = X_train[:, indices]
-        X_test_k = X_test[:, indices]
+
+        print(f"X_train_k shape: {X_train_k.shape}, y_train shape: {y_train.shape}")
 
         cls_k = LogisticRegression(penalty="l1", C=0.1, solver="liblinear", max_iter=1000)
         cls_k.fit(X_train_k, y_train)
 
         y_pred_train_k = cls_k.predict(X_train_k)
-        y_pred_test_k = cls_k.predict(X_test_k)
+        y_pred_test_k = cls_k.predict(X_test)
 
         df = pd.DataFrame({
             'top_k': [top_k],
@@ -83,9 +84,6 @@ def get_top_genes(adata):
 
         df.to_csv(os.path.join(results_dir, f'top_genes_{top_k}.csv'), index=False)
         print(f"Top {top_k} results saved.")
-
-    top_genes.to_csv(os.path.join(results_dir, 'top_genes_all.csv'), index=False)
-    print("All top gene results saved.")
 
     
 adata = ad.read_h5ad('/data1/data/corpus/Zheng68K.h5ad')  
