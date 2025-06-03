@@ -62,6 +62,12 @@ def load_data(samp,cluster, smote):
             else:
                 print("Preprocessing raw data with SMOTE on cluster")
                 adata = sc.read_h5ad('/data1/data/corpus/Zheng68K.h5ad')
+                X = adata.X
+                cell_type_series = adata.obs['celltype']
+                le = LabelEncoder()
+                y = le.fit_transform(cell_type_series)
+                gene_names = adata.var_names
+                feature_importance(X,y,le,gene_names)
                 X_train, y_train, X_test, y_test, le = preprocess_data(adata, samp, cluster)
                 adata_train = sc.AnnData(X_train)
                 adata_train.obs['label'] = y_train  
