@@ -53,6 +53,7 @@ def get_top_genes(adata):
     top_genes = pd.DataFrame()
 
     for top_k in top_k_list:
+        print(f"Processing top {top_k} genes...")
         indices = np.argsort(importances)[-top_k:][::-1]
         top_genes_k = pd.DataFrame({
             'gene': adata.var_names[indices],
@@ -85,6 +86,6 @@ def get_top_genes(adata):
         df.to_csv(os.path.join(results_dir, f'top_genes_{top_k}.csv'), index=False)
         print(f"Top {top_k} results saved.")
 
-    
+
 adata = ad.read_h5ad('/data1/data/corpus/Zheng68K.h5ad')  
 get_top_genes(adata)  
