@@ -144,7 +144,7 @@ def feature_importance(X, y, le, gene_names):
     base_dir = os.path.dirname(os.path.abspath(__file__))
     results_dir = os.path.join(base_dir, 'results')
     os.makedirs(results_dir, exist_ok=True)
-    cls = LogisticRegression(max_iter=1000, multi_class='multinomial', solver='lbfgs')
+    cls = LogisticRegression(penalty="l1", C=0.1,solver="liblinear")
     cls.fit(X, y)
 
     importances = np.mean(np.abs(cls.coef_), axis=0)
@@ -156,7 +156,7 @@ def feature_importance(X, y, le, gene_names):
     plt.yticks(range(top_k), gene_names[indices][::-1])
     plt.xlabel('Mean Absolute Coefficient (Feature Importance)')
     plt.tight_layout()
-    plot_path = os.path.join(results_dir, 'top_50_gene_importance.png')
+    plot_path = os.path.join(results_dir, 'top_50_gene_importance_liblinear.png')
     plt.savefig(plot_path, dpi=300)
     plt.close()
 
