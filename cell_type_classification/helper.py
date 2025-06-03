@@ -48,10 +48,15 @@ def load_data(samp,cluster, smote):
 
             if os.path.exists(train_path) and os.path.exists(test_path):
                 print("Loading balanced and preprocessed data on cluster")
-                
+                adata = sc.read_h5ad('/data1/data/corpus/Zheng68K.h5ad')
+                X = adata.X
+                cell_type_series = adata.obs['celltype']
+                le = LabelEncoder()
+                y = le.fit_transform(cell_type_series)
+                gene_names = adata.var_names
+                feature_importance(X,y,le,gene_names)
                 adata_train = sc.read_h5ad(train_path)
                 adata_test = sc.read_h5ad(test_path)
-                le = LabelEncoder()
                 X_train = adata_train.X
                 y_train = adata_train.obs['label'].values
                 print(f"X_train shape: {X_train.shape}")
