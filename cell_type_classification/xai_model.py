@@ -83,7 +83,7 @@ def shap_explain(clf, X_test, y_test, feature_names):
     return shap_values, explainer
 
 
-def shap_explain_all(clf, X_test, y_test, feature_names):
+def shap_explain_all(clf, X_test, y_test, feature_names, le):
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
     results_dir = os.path.join(base_dir, 'results')
@@ -103,8 +103,6 @@ def shap_explain_all(clf, X_test, y_test, feature_names):
 
     print("Shape of correct_labels:",correct_labels.shape)
 
-
-    explainer = shap.Explainer(clf, X_test) 
     shap_values_correct = explainer(X_correct)
 
     print("shap_values_correct[0].values.shape")
@@ -147,8 +145,9 @@ def shap_explain_all(clf, X_test, y_test, feature_names):
         writer.writerow(['Class', 'Feature', 'Mean_SHAP'])
 
         for class_id, features in top_features_per_class.items():
+            class_name = le.inverse_transform([class_id])[0]
             for fname, score in features:
-                writer.writerow([class_id, fname, round(score, 6)])
+                writer.writerow([class_name, fname, round(score, 6)])
 
     print(f"Top {top_k} features per class saved to {output_file}")
 
@@ -167,5 +166,5 @@ print(f"X_train shape: {X_train.shape}, y_train shape: {y_train.shape}")
 print(f"X_test shape: {X_test.shape}, y_test shape: {y_test.shape}")
 lr = h.train_logistic_regression(X_train, y_train)
 #shap_values, explainer = shap_explain(lr, X_test, y_test, feature_names)
-shap_values_correct, correct_indices, explainer = shap_explain_all(lr, X_test, y_test, feature_names)
+shap_values_correct, correct_indices, explainer = shap_explain_all(lr, X_test, y_test, feature_names, le)
 
