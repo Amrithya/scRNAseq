@@ -40,7 +40,7 @@ def shap_explain(clf, X_test, y_test, feature_names):
     results_dir = os.path.join(base_dir, 'results')
     os.makedirs(results_dir, exist_ok=True)
 
-    print("Explaining model predictions using SHAP")
+    print("Explaining model predictions using SHAP for one correctly predicted sample")
 
     explainer = shap.Explainer(clf, X_test)
     y_pred = clf.predict(X_test)
@@ -83,6 +83,57 @@ def shap_explain(clf, X_test, y_test, feature_names):
     return shap_values, explainer
 
 
+def shap_explain_all(clf, X_test, y_test, feature_names):
+
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    results_dir = os.path.join(base_dir, 'results')
+    os.makedirs(results_dir, exist_ok=True)
+
+    print("Explaining model predictions using SHAP for all correctly samples")
+
+    explainer = shap.Explainer(clf, X_test)
+    y_pred = clf.predict(X_test)
+
+    correct_indices = np.where(y_pred == y_test)[0]    
+    if len(correct_indices) == 0:
+        raise ValueError("No correctly predicted samples found in test set.")
+    
+    X_correct = X_test.iloc[correct_indices]
+    correct_labels = y_test.iloc[correct_indices].values
+
+    print("Shape of correct_labels:",correct_labels.shape)
+
+
+    explainer = shap.Explainer(clf, X_test) 
+    shap_values_correct = explainer(X_correct)
+
+
+    print(f"Computed SHAP values for {len(correct_indices)} correctly predicted samples.")
+
+    all_dfs = []
+    for i, idx in enumerate(correct_indices):
+        shap_vals = shap_values_correct[i].values
+        if shap_vals.ndim > 1:
+            pred_class = y_pred[idx]
+            shap_vals = shap_vals[pred_class]
+        
+        df = pd.DataFrame({
+            'feature': feature_names,
+            'shap_value': shap_vals,
+            'sample_index': idx,
+            'true_label': correct_labels[i]
+        })
+        all_dfs.append(df)
+    
+    result_df = pd.concat(all_dfs)
+    result_path = os.path.join(results_dir, 'shap_values_all_correct.csv')
+    result_df.to_csv(result_path, index=False)
+    print(f"Saved SHAP values for all correctly predicted samples to {result_path}")
+
+    return shap_values_correct, correct_indices, explainer
+
+
+
 adata = ad.read_h5ad('/data1/data/corpus/Zheng68K.h5ad')  
 X = adata.X.toarray() if scipy.sparse.issparse(adata.X) else adata.X
 feature_names = adata.var_names
@@ -92,5 +143,6 @@ X_train, y_train, X_test, y_test = h.split_data(X, y)
 print(f"X_train shape: {X_train.shape}, y_train shape: {y_train.shape}")
 print(f"X_test shape: {X_test.shape}, y_test shape: {y_test.shape}")
 lr = h.train_logistic_regression(X_train, y_train)
-shap_values, explainer = shap_explain(lr, X_test, y_test, feature_names)
+#shap_values, explainer = shap_explain(lr, X_test, y_test, feature_names)
+shap_values_correct, correct_indices, explainer = shap_explain_all(lr, X_test, y_test, feature_names)
 
