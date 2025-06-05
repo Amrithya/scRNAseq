@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from xgboost import XGBClassifier
 from scipy.sparse import issparse
 import scipy.sparse
-
+import csv
 from imblearn.over_sampling import SMOTE
 from sklearn.linear_model import SGDClassifier
 from sklearn.preprocessing import LabelEncoder
@@ -125,19 +125,33 @@ def shap_explain_all(clf, X_test, y_test, feature_names):
         assert len(shap_vals) == len(feature_names), \
             f"SHAP value length {len(shap_vals)} doesn't match feature count {len(feature_names)}"
 
-        df = pd.DataFrame({
-            'feature': feature_names,
-            'shap_value': shap_vals,
-            'sample_index': idx,
-            'true_label': correct_labels[i]
-        })
+    shap_array = np.stack([sv.values for sv in shap_values_correct])
+    abs_shap = np.abs(shap_array)
+    mean_shap_per_class = abs_shap.mean(axis=0)
+    normalized = mean_shap_per_class / mean_shap_per_class.sum(axis=0, keepdims=True)
+    top_k = 10
+    top_features_per_class = {}
 
-        all_dfs.append(df)
-    
-    result_df = pd.concat(all_dfs)
-    result_path = os.path.join(results_dir, 'shap_values_all_correct.csv')
-    result_df.to_csv(result_path, index=False)
-    print(f"Saved SHAP values for all correctly predicted samples to {result_path}")
+    for class_idx in range(normalized.shape[1]):
+        top_k_indices = np.argsort(normalized[:, class_idx])[::-1][:top_k]
+        top_features_per_class[class_idx] = [(feature_names[i], normalized[i, class_idx])
+                                         for i in top_k_indices]
+        
+    output_file = os.path.join(results_dir, f"top_{top_k}_features_per_class.csv")
+
+    if os.path.exists(output_file):
+        os.remove(output_file)
+
+    with open(output_file, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(['Class', 'Feature', 'Mean_SHAP'])
+
+        for class_id, features in top_features_per_class.items():
+            for fname, score in features:
+                writer.writerow([class_id, fname, round(score, 6)])
+
+    print(f"Top {top_k} features per class saved to {output_file}")
+
 
     return shap_values_correct, correct_indices, explainer
 
