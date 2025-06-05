@@ -107,12 +107,16 @@ def shap_explain_all(clf, X_test, y_test, feature_names):
     explainer = shap.Explainer(clf, X_test) 
     shap_values_correct = explainer(X_correct)
 
+    print("shap_values_correct[0].values.shape")
+    print(shap_values_correct[0].values.shape)
 
     print(f"Computed SHAP values for {len(correct_indices)} correctly predicted samples.")
 
     all_dfs = []
     for i, idx in enumerate(correct_indices):
-        shap_vals = shap_values_correct[i].values
+        
+        pred_class = y_pred[idx]
+        shap_vals = shap_values_correct[i].values[pred_class, :]
 
         if shap_vals.ndim == 2:
             pred_class = y_pred[idx]
