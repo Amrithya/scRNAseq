@@ -114,9 +114,9 @@ def shap_explain_all(clf, X_test, y_test, feature_names):
 
     all_dfs = []
     for i, idx in enumerate(correct_indices):
-        
+
         pred_class = y_pred[idx]
-        shap_vals = shap_values_correct[i].values[pred_class, :]
+        shap_vals = shap_values_correct[i].values[:, pred_class]
 
         if shap_vals.ndim == 2:
             pred_class = y_pred[idx]
