@@ -188,8 +188,7 @@ def shap_explain_positive(clf, X_test, y_test, feature_names, le):
     
     shap_values_correct = explainer(X_correct)
 
-    print("shap_values_correct[0].values.shape")
-    print(shap_values_correct[0].values.shape)
+    print("shap_values_correct[0].values.shape",shap_values_correct[0].values.shape)
     print("SHAP values array shape:", shap_values_correct.values.shape)
     print(f"Computed SHAP values for {len(correct_indices)} correctly predicted samples.")
 
@@ -215,13 +214,18 @@ def shap_explain_positive(clf, X_test, y_test, feature_names, le):
         writer.writerow(['class_name', 'gene', 'mean_abs_shap'])
 
         for cls in range(num_classes):
-            class_indices = [i for i, idx in enumerate(correct_indices) if y_pred[idx] == cls]
+            class_indices = [i for i, idx in enumerate(correct_indices)
+                         if y_pred[idx] == cls and y_test[idx] == cls]
+
             if not class_indices:
                 print(f"Class {cls}: No correctly predicted samples.")
                 continue
 
             shap_cls = shap_values_correct.values[class_indices, :, cls]
-            mean_abs_shap_cls = np.mean(np.abs(shap_cls), axis=0)
+            print("shap_cls:", shap_cls.shape)
+            sum_abs_shap_cls = np.sum(np.abs(shap_cls), axis=0)
+            count = count_class[cls]
+            mean_abs_shap_cls = sum_abs_shap_cls / count if count > 0 else np.zeros_like(sum_abs_shap_cls)
 
             sorted_idx = np.argsort(-mean_abs_shap_cls)[:10]
             top_features = [feature_names[i] for i in sorted_idx]
