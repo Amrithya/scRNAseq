@@ -98,8 +98,8 @@ def shap_explain_all(clf, X_test, y_test, feature_names):
     if len(correct_indices) == 0:
         raise ValueError("No correctly predicted samples found in test set.")
     
-    X_correct = X_test.iloc[correct_indices]
-    correct_labels = y_test.iloc[correct_indices].values
+    X_correct = X_test[correct_indices]
+    correct_labels = y_test[correct_indices]
 
     print("Shape of correct_labels:",correct_labels.shape)
 
