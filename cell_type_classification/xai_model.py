@@ -103,6 +103,11 @@ def shap_explain_all(clf, X_test, y_test, feature_names, le):
 
     print("Shape of correct_labels:",correct_labels.shape)
 
+    count_class = {i: (correct_labels == i).sum() for i in range(11)}
+    print("Counts of labels 0 to 10:")
+    for label, count in count_class.items():
+        print(f"{label}: {count}")
+
     shap_values_correct = explainer(X_correct)
 
     print("shap_values_correct[0].values.shape")
@@ -154,6 +159,80 @@ def shap_explain_all(clf, X_test, y_test, feature_names, le):
 
     return shap_values_correct, correct_indices, explainer
 
+def shap_explain_positive(clf, X_test, y_test, feature_names, le):
+
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    results_dir = os.path.join(base_dir, 'results')
+    os.makedirs(results_dir, exist_ok=True)
+
+    print("Explaining model predictions using SHAP for all correctly samples")
+
+    explainer = shap.Explainer(clf, X_test)
+    y_pred = clf.predict(X_test)
+
+    correct_indices = np.where(y_pred == y_test)[0]    
+    if len(correct_indices) == 0:
+        raise ValueError("No correctly predicted samples found in test set.")
+    
+    X_correct = X_test[correct_indices]
+    correct_labels = y_test[correct_indices]
+
+    print("Shape of correct_labels:",correct_labels.shape)
+
+    num_classes = len(le.classes_)
+    count_class = {i: (correct_labels == i).sum() for i in range(num_classes)}
+
+    print("Counts of labels 0 to 10:")
+    for label, count in count_class.items():
+        print(f"{label}: {count}")
+    
+    shap_values_correct = explainer(X_correct)
+
+    print("shap_values_correct[0].values.shape")
+    print(shap_values_correct[0].values.shape)
+    print("SHAP values array shape:", shap_values_correct.values.shape)
+    print(f"Computed SHAP values for {len(correct_indices)} correctly predicted samples.")
+
+    for i, idx in enumerate(correct_indices):
+
+        pred_class = y_pred[idx]
+        shap_vals = shap_values_correct[i].values[:, pred_class]
+
+        if shap_vals.ndim == 2:
+            pred_class = y_pred[idx]
+            shap_vals = shap_vals[pred_class]
+
+        assert len(shap_vals) == len(feature_names), \
+            f"SHAP value length {len(shap_vals)} doesn't match feature count {len(feature_names)}"
+        
+    num_classes = shap_values_correct.values.shape[2]
+    num_features = len(feature_names)
+
+    csv_path = os.path.join(results_dir, 'top10_genes_all_classes.csv')
+
+    with open(csv_path, mode='w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(['class_name', 'gene', 'mean_abs_shap'])
+
+        for cls in range(num_classes):
+            class_indices = [i for i, idx in enumerate(correct_indices) if y_pred[idx] == cls]
+            if not class_indices:
+                print(f"Class {cls}: No correctly predicted samples.")
+                continue
+
+            shap_cls = shap_values_correct.values[class_indices, :, cls]
+            mean_abs_shap_cls = np.mean(np.abs(shap_cls), axis=0)
+
+            sorted_idx = np.argsort(-mean_abs_shap_cls)[:10]
+            top_features = [feature_names[i] for i in sorted_idx]
+            top_values = mean_abs_shap_cls[sorted_idx]
+
+            class_name = le.inverse_transform([cls])[0]
+
+            for gene, val in zip(top_features, top_values):
+                writer.writerow([class_name, gene, f"{val:.4f}"])
+
+    print(f"Saved top 10 genes for all classes to {csv_path}")
 
 
 adata = ad.read_h5ad('/data1/data/corpus/Zheng68K.h5ad')  
