@@ -113,16 +113,21 @@ def shap_explain_all(clf, X_test, y_test, feature_names):
     all_dfs = []
     for i, idx in enumerate(correct_indices):
         shap_vals = shap_values_correct[i].values
-        if shap_vals.ndim > 1:
+
+        if shap_vals.ndim == 2:
             pred_class = y_pred[idx]
             shap_vals = shap_vals[pred_class]
-        
+
+        assert len(shap_vals) == len(feature_names), \
+            f"SHAP value length {len(shap_vals)} doesn't match feature count {len(feature_names)}"
+
         df = pd.DataFrame({
             'feature': feature_names,
             'shap_value': shap_vals,
             'sample_index': idx,
             'true_label': correct_labels[i]
         })
+
         all_dfs.append(df)
     
     result_df = pd.concat(all_dfs)
