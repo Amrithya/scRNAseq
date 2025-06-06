@@ -162,76 +162,81 @@ def shap_explain_all(clf, X_test, y_test, feature_names, le):
     return shap_values_correct, correct_indices, explainer
 
 def shap_explain_positive(clf, X_test, y_test, feature_names, le):
-
     print(f"Explaining model predictions using SHAP for model {clf}")
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
     results_dir = os.path.join(base_dir, 'results')
     os.makedirs(results_dir, exist_ok=True)
 
-    print("Explaining model predictions using SHAP for all correctly samples")
+    print("Explaining model predictions using SHAP for all correctly predicted samples")
 
     explainer = shap.Explainer(clf, X_test)
     y_pred = clf.predict(X_test)
 
-    correct_indices = np.where(y_pred == y_test)[0]    
+    correct_indices = np.where(y_pred == y_test)[0]
     if len(correct_indices) == 0:
         raise ValueError("No correctly predicted samples found in test set.")
-    
+
     X_correct = X_test[correct_indices]
     correct_labels = y_test[correct_indices]
 
-    print("Shape of correct_labels:",correct_labels.shape)
+    print("Shape of correct_labels:", correct_labels.shape)
 
     num_classes = len(le.classes_)
     count_class = {i: (correct_labels == i).sum() for i in range(num_classes)}
 
-    print("Counts of labels 0 to 10:")
+    print("Counts of correctly predicted labels per class:")
     for label, count in count_class.items():
         print(f"{label}: {count}")
-    
+
     shap_values_correct = explainer(X_correct)
 
-    print("shap_values_correct[0].values.shape",shap_values_correct[0].values.shape)
-    print(f"Type of shap_values_correct: {type(shap_values_correct)}")
-
-    print(f"SHAP values array shape is {shap_values_correct.values.shape}")
+    print(f"shap_values_correct type: {type(shap_values_correct)}")
+    print(f"shap_values_correct[0] type: {type(shap_values_correct[0])}")
+    print(f"shap_values_correct.shape: {getattr(shap_values_correct, 'shape', 'No shape attribute')}")
+    print(f"SHAP values tensor shape: {shap_values_correct.values.shape}")
     print(f"Computed SHAP values for {len(correct_indices)} correctly predicted samples.")
 
     shap_matrix = []
 
     for i, idx in enumerate(correct_indices):
-
         pred_class = y_pred[idx]
-        shap_vals = shap_values_correct[i].values[:, pred_class]
+        shap_array = shap_values_correct[i].values
+
+        # Safe handling of SHAP output shape
+        if shap_array.ndim == 2:
+            shap_vals = shap_array[:, pred_class]
+        elif shap_array.ndim == 1:
+            shap_vals = shap_array
+        else:
+            raise ValueError(f"Unexpected SHAP value shape: {shap_array.shape}")
+
         shap_matrix.append(shap_vals)
 
-        if idx < 3:   
-            print(f"SHAP values shape {idx} (class {pred_class}): {shap_vals.shape}")
+        if i < 3:
+            print(f"Sample {i}: SHAP values shape = {shap_vals.shape} for predicted class {pred_class}")
+
         assert len(shap_vals) == len(feature_names), \
             f"SHAP value length {len(shap_vals)} doesn't match feature count {len(feature_names)}"
-    print("All SHAP values have the correct shape.")
-    print(f"Type of shap_vals: {type(shap_vals)}")
 
-    print(f"SHAP values array shape is {shap_vals.shape}")
+    print("All SHAP values have the correct shape.")
+    print(f"Last sample SHAP values shape: {shap_vals.shape}")
     shap_matrix = np.array(shap_matrix)
     print(f"Final SHAP matrix shape: {shap_matrix.shape}")
-    num_classes = shap_values_correct.values.shape[2]
-    num_features = len(feature_names)
 
-    
-    K = 15  
+    num_classes_check = shap_values_correct.values.shape[-1] if shap_values_correct.values.ndim == 3 else 1
+    K = 15
     csv_path = os.path.join(results_dir, f"{clf}_top_bottom15_genes_all_classes_from_shap_matrix.csv")
 
     with open(csv_path, mode='w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(['class_name', 'gene', 'shap_value', 'rank_type'])
 
-        for cls in range(num_classes):
+        for cls in range(num_classes_check):
             class_indices = [
                 i for i, idx in enumerate(correct_indices)
                 if y_pred[idx] == cls and y_test[idx] == cls
-                ]
+            ]
 
             if not class_indices:
                 print(f"Class {cls}: No correctly predicted samples.")
@@ -241,10 +246,11 @@ def shap_explain_positive(clf, X_test, y_test, feature_names, le):
             mean_shap_cls = np.mean(shap_cls, axis=0)
 
             top_idx = np.argsort(-mean_shap_cls)[:K]
+            bottom_idx = np.argsort(mean_shap_cls)[:K]
+
             top_features = [feature_names[i] for i in top_idx]
             top_values = mean_shap_cls[top_idx]
 
-            bottom_idx = np.argsort(mean_shap_cls)[:K]
             bottom_features = [feature_names[i] for i in bottom_idx]
             bottom_values = mean_shap_cls[bottom_idx]
 
@@ -259,7 +265,7 @@ def shap_explain_positive(clf, X_test, y_test, feature_names, le):
     print(f"Saved top and bottom {K} genes for all classes to {csv_path}")
     
 
-model = ['lr', 'rf', 'xgb']
+models = ['rf', 'xgb']
 
 adata = ad.read_h5ad('/data1/data/corpus/scDATA/Zheng68K.h5ad')  
 X = adata.X.toarray() if scipy.sparse.issparse(adata.X) else adata.X
@@ -270,26 +276,23 @@ X_train, y_train, X_test, y_test = h.split_data(X, y)
 print(f"X_train shape: {X_train.shape}, y_train shape: {y_train.shape}")
 print(f"X_test shape: {X_test.shape}, y_test shape: {y_test.shape}")
 
-for clf in model:
-    print(f"Running model: {clf}")
+for i, clf in enumerate(models):
+    print(f"\nRunning model {i + 1}/{len(models)}: {clf}")
     model_path = f"/data1/data/corpus/scMODEL/{clf}_model_Zheng68K.pkl"
+
     if os.path.exists(model_path):
         print(f"Loading {clf} model...")
         model_clf = joblib.load(model_path)
     else:
-        print("Model not found.")
+        print("Model not found. Training new model.")
         if clf == "rf":
             model_clf = h.train_rf(X_train, y_train)
-            joblib.dump(model_clf, model_path)
-            print(f"Model saved to {model_path}")
         elif clf == "xgb":
             model_clf = h.train_xgboost(X_train, y_train)
-            joblib.dump(model_clf, model_path)
-            print(f"Model saved to {model_path}")
         elif clf == "lr":
             model_clf = h.train_logistic_regression(X_train, y_train)
-            joblib.dump(model_clf, model_path)
-            print(f"Model saved to {model_path}")
-    #shap_values, explainer = shap_explain(lr, X_test, y_test, feature_names)
-    shap_values_correct, correct_indices, explainer = shap_explain_positive(model_clf, X_test, y_test, feature_names, le)
+        joblib.dump(model_clf, model_path)
+        print(f"Model saved to {model_path}")
+
+    shap_explain_positive(model_clf, X_test, y_test, feature_names, le)
 
