@@ -257,5 +257,5 @@ print(f"X_train shape: {X_train.shape}, y_train shape: {y_train.shape}")
 print(f"X_test shape: {X_test.shape}, y_test shape: {y_test.shape}")
 lr = h.train_logistic_regression(X_train, y_train)
 #shap_values, explainer = shap_explain(lr, X_test, y_test, feature_names)
-shap_values_correct, correct_indices, explainer = shap_explain_all(lr, X_test, y_test, feature_names, le)
+shap_values_correct, correct_indices, explainer = shap_explain_positive(lr, X_test, y_test, feature_names, le)
 
