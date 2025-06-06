@@ -200,13 +200,16 @@ def shap_explain_positive(clf, X_test, y_test, feature_names, le):
         if shap_vals.ndim == 2:
             pred_class = y_pred[idx]
             shap_vals = shap_vals[pred_class]
-
+        if idx < 3:   
+            print(f"SHAP values shape {idx} (class {pred_class}): {shap_vals.shape}")
         assert len(shap_vals) == len(feature_names), \
             f"SHAP value length {len(shap_vals)} doesn't match feature count {len(feature_names)}"
-        
+    print("Shap values shape:", shap_values_correct.values.shape)
+
     num_classes = shap_values_correct.values.shape[2]
     num_features = len(feature_names)
 
+    """
     csv_path = os.path.join(results_dir, 'top10_genes_all_classes.csv')
 
     with open(csv_path, mode='w', newline='') as csvfile:
@@ -237,7 +240,7 @@ def shap_explain_positive(clf, X_test, y_test, feature_names, le):
                 writer.writerow([class_name, gene, f"{val:.4f}"])
 
     print(f"Saved top 10 genes for all classes to {csv_path}")
-
+    """
 
 adata = ad.read_h5ad('/data1/data/corpus/Zheng68K.h5ad')  
 X = adata.X.toarray() if scipy.sparse.issparse(adata.X) else adata.X
