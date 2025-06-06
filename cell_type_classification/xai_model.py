@@ -189,7 +189,9 @@ def shap_explain_positive(clf, X_test, y_test, feature_names, le):
     shap_values_correct = explainer(X_correct)
 
     print("shap_values_correct[0].values.shape",shap_values_correct[0].values.shape)
-    print("SHAP values array shape:", shap_values_correct.values.shape)
+    print(f"Type of shap_values_correct: {type(shap_values_correct)}")
+
+    print(f"SHAP values array shape is {shap_values_correct.values.shape}")
     print(f"Computed SHAP values for {len(correct_indices)} correctly predicted samples.")
 
     for i, idx in enumerate(correct_indices):
@@ -204,7 +206,10 @@ def shap_explain_positive(clf, X_test, y_test, feature_names, le):
             print(f"SHAP values shape {idx} (class {pred_class}): {shap_vals.shape}")
         assert len(shap_vals) == len(feature_names), \
             f"SHAP value length {len(shap_vals)} doesn't match feature count {len(feature_names)}"
-    print("Shap values shape:", shap_values_correct.values.shape)
+    print("All SHAP values have the correct shape.")
+    print(f"Type of shap_vals: {type(shap_vals)}")
+
+    print("Shap values shape:", shap_vals.values.shape)
 
     num_classes = shap_values_correct.values.shape[2]
     num_features = len(feature_names)
