@@ -218,36 +218,43 @@ def shap_explain_positive(clf, X_test, y_test, feature_names, le):
     num_features = len(feature_names)
 
     
-    K = 10
-    csv_path = os.path.join(results_dir, 'top10_genes_all_classes_from_shap_matrix.csv')
+    K = 15  
+    csv_path = os.path.join(results_dir, 'top_bottom15_genes_all_classes_from_shap_matrix.csv')
 
     with open(csv_path, mode='w', newline='') as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow(['class_name', 'gene', 'mean_abs_shap'])
+        writer.writerow(['class_name', 'gene', 'shap_value', 'rank_type'])
 
         for cls in range(num_classes):
             class_indices = [
                 i for i, idx in enumerate(correct_indices)
                 if y_pred[idx] == cls and y_test[idx] == cls
-            ]
+                ]
 
             if not class_indices:
                 print(f"Class {cls}: No correctly predicted samples.")
                 continue
 
             shap_cls = shap_matrix[class_indices, :]
-            mean_abs_shap_cls = np.mean(np.abs(shap_cls), axis=0)
+            mean_shap_cls = np.mean(shap_cls, axis=0)
 
-            sorted_idx = np.argsort(-mean_abs_shap_cls)[:K]
-            top_features = [feature_names[i] for i in sorted_idx]
-            top_values = mean_abs_shap_cls[sorted_idx]
+            top_idx = np.argsort(-mean_shap_cls)[:K]
+            top_features = [feature_names[i] for i in top_idx]
+            top_values = mean_shap_cls[top_idx]
+
+            bottom_idx = np.argsort(mean_shap_cls)[:K]
+            bottom_features = [feature_names[i] for i in bottom_idx]
+            bottom_values = mean_shap_cls[bottom_idx]
 
             class_name = le.inverse_transform([cls])[0]
 
             for gene, val in zip(top_features, top_values):
-                writer.writerow([class_name, gene, f"{val:.4f}"])
+                writer.writerow([class_name, gene, f"{val:.4f}", 'top'])
 
-    print(f"Saved top {K} genes for all classes to {csv_path}")
+            for gene, val in zip(bottom_features, bottom_values):
+                writer.writerow([class_name, gene, f"{val:.4f}", 'bottom'])
+
+    print(f"Saved top and bottom {K} genes for all classes to {csv_path}")
     
 
 adata = ad.read_h5ad('/data1/data/corpus/Zheng68K.h5ad')  
