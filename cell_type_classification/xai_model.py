@@ -13,6 +13,8 @@ from xgboost import XGBClassifier
 from scipy.sparse import issparse
 import scipy.sparse
 import csv
+import joblib
+
 from imblearn.over_sampling import SMOTE
 from sklearn.linear_model import SGDClassifier
 from sklearn.preprocessing import LabelEncoder
@@ -209,7 +211,7 @@ def shap_explain_positive(clf, X_test, y_test, feature_names, le):
     print("All SHAP values have the correct shape.")
     print(f"Type of shap_vals: {type(shap_vals)}")
 
-    print("Shap values shape:", shap_vals.values.shape)
+    print(f"SHAP values array shape is {shap_vals.shape}")
 
     num_classes = shap_values_correct.values.shape[2]
     num_features = len(feature_names)
@@ -255,7 +257,16 @@ y = le.fit_transform(adata.obs['celltype'])
 X_train, y_train, X_test, y_test = h.split_data(X, y)
 print(f"X_train shape: {X_train.shape}, y_train shape: {y_train.shape}")
 print(f"X_test shape: {X_test.shape}, y_test shape: {y_test.shape}")
-lr = h.train_logistic_regression(X_train, y_train)
+model_path = '/data1/data/corpus/logistic_regression_model_Zheng68K.pkl'
+
+if os.path.exists(model_path):
+    print("Loading saved logistic regression model...")
+    lr = joblib.load(model_path)
+else:
+    print("Model not found. Training logistic regression model...")
+    lr = h.train_logistic_regression(X_train, y_train)
+    joblib.dump(lr, model_path)
+    print(f"Model saved to {model_path}")
 #shap_values, explainer = shap_explain(lr, X_test, y_test, feature_names)
 shap_values_correct, correct_indices, explainer = shap_explain_positive(lr, X_test, y_test, feature_names, le)
 
