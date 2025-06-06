@@ -163,6 +163,8 @@ def shap_explain_all(clf, X_test, y_test, feature_names, le):
 
 def shap_explain_positive(clf, X_test, y_test, feature_names, le):
 
+    print(f"Explaining model predictions using SHAP for model {clf}")
+
     base_dir = os.path.dirname(os.path.abspath(__file__))
     results_dir = os.path.join(base_dir, 'results')
     os.makedirs(results_dir, exist_ok=True)
@@ -219,7 +221,7 @@ def shap_explain_positive(clf, X_test, y_test, feature_names, le):
 
     
     K = 15  
-    csv_path = os.path.join(results_dir, 'top_bottom15_genes_all_classes_from_shap_matrix.csv')
+    csv_path = os.path.join(results_dir, f"{clf}_top_bottom15_genes_all_classes_from_shap_matrix.csv")
 
     with open(csv_path, mode='w', newline='') as csvfile:
         writer = csv.writer(csvfile)
@@ -257,7 +259,9 @@ def shap_explain_positive(clf, X_test, y_test, feature_names, le):
     print(f"Saved top and bottom {K} genes for all classes to {csv_path}")
     
 
-adata = ad.read_h5ad('/data1/data/corpus/Zheng68K.h5ad')  
+model = ['lr', 'rf', 'xgb']
+
+adata = ad.read_h5ad('/data1/data/corpus/scDATA/Zheng68K.h5ad')  
 X = adata.X.toarray() if scipy.sparse.issparse(adata.X) else adata.X
 feature_names = adata.var_names
 le = LabelEncoder()
@@ -265,16 +269,27 @@ y = le.fit_transform(adata.obs['celltype'])
 X_train, y_train, X_test, y_test = h.split_data(X, y)
 print(f"X_train shape: {X_train.shape}, y_train shape: {y_train.shape}")
 print(f"X_test shape: {X_test.shape}, y_test shape: {y_test.shape}")
-model_path = '/data1/data/corpus/logistic_regression_model_Zheng68K.pkl'
 
-if os.path.exists(model_path):
-    print("Loading saved logistic regression model...")
-    lr = joblib.load(model_path)
-else:
-    print("Model not found.")
-    lr = h.train_logistic_regression(X_train, y_train)
-    joblib.dump(lr, model_path)
-    print(f"Model saved to {model_path}")
-#shap_values, explainer = shap_explain(lr, X_test, y_test, feature_names)
-shap_values_correct, correct_indices, explainer = shap_explain_positive(lr, X_test, y_test, feature_names, le)
+for clf in model:
+    print(f"Running model: {clf}")
+    model_path = f"/data1/data/corpus/scMODEL/{clf}_model_Zheng68K.pkl"
+    if os.path.exists(model_path):
+        print(f"Loading {clf} model...")
+        model_clf = joblib.load(model_path)
+    else:
+        print("Model not found.")
+        if clf == "rf":
+            model_clf = h.train_rf(X_train, y_train)
+            joblib.dump(model_clf, model_path)
+            print(f"Model saved to {model_path}")
+        elif clf == "xgb":
+            model_clf = h.train_xgboost(X_train, y_train)
+            joblib.dump(model_clf, model_path)
+            print(f"Model saved to {model_path}")
+        elif clf == "lr":
+            model_clf = h.train_logistic_regression(X_train, y_train)
+            joblib.dump(model_clf, model_path)
+            print(f"Model saved to {model_path}")
+    #shap_values, explainer = shap_explain(lr, X_test, y_test, feature_names)
+    shap_values_correct, correct_indices, explainer = shap_explain_positive(model_clf, X_test, y_test, feature_names, le)
 
