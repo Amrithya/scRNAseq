@@ -161,7 +161,7 @@ def shap_explain_all(clf, X_test, y_test, feature_names, le):
 
     return shap_values_correct, correct_indices, explainer
 
-def shap_explain_positive(clf, X_test, y_test, feature_names, le):
+def shap_explain_positive(clf, model_clf, X_test, y_test, feature_names, le):
     print(f"Explaining model predictions using SHAP for model {clf}")
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -170,8 +170,8 @@ def shap_explain_positive(clf, X_test, y_test, feature_names, le):
 
     print("Explaining model predictions using SHAP for all correctly predicted samples")
 
-    explainer = shap.Explainer(clf, X_test)
-    y_pred = clf.predict(X_test)
+    explainer = shap.Explainer(model_clf, X_test)
+    y_pred = model_clf.predict(X_test)
 
     correct_indices = np.where(y_pred == y_test)[0]
     if len(correct_indices) == 0:
@@ -294,5 +294,5 @@ for i, clf in enumerate(models):
         joblib.dump(model_clf, model_path)
         print(f"Model saved to {model_path}")
 
-    shap_explain_positive(model_clf, X_test, y_test, feature_names, le)
+    shap_explain_positive(clf, model_clf, X_test, y_test, feature_names, le)
 
