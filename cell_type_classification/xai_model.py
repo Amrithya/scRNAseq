@@ -196,14 +196,14 @@ def shap_explain_positive(clf, X_test, y_test, feature_names, le):
     print(f"SHAP values array shape is {shap_values_correct.values.shape}")
     print(f"Computed SHAP values for {len(correct_indices)} correctly predicted samples.")
 
+    shap_matrix = []
+
     for i, idx in enumerate(correct_indices):
 
         pred_class = y_pred[idx]
         shap_vals = shap_values_correct[i].values[:, pred_class]
+        shap_matrix.append(shap_vals)
 
-        if shap_vals.ndim == 2:
-            pred_class = y_pred[idx]
-            shap_vals = shap_vals[pred_class]
         if idx < 3:   
             print(f"SHAP values shape {idx} (class {pred_class}): {shap_vals.shape}")
         assert len(shap_vals) == len(feature_names), \
@@ -212,32 +212,33 @@ def shap_explain_positive(clf, X_test, y_test, feature_names, le):
     print(f"Type of shap_vals: {type(shap_vals)}")
 
     print(f"SHAP values array shape is {shap_vals.shape}")
-
+    shap_matrix = np.array(shap_matrix)
+    print(f"Final SHAP matrix shape: {shap_matrix.shape}")
     num_classes = shap_values_correct.values.shape[2]
     num_features = len(feature_names)
 
-    """
-    csv_path = os.path.join(results_dir, 'top10_genes_all_classes.csv')
+    
+    K = 10
+    csv_path = os.path.join(results_dir, 'top10_genes_all_classes_from_shap_matrix.csv')
 
     with open(csv_path, mode='w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(['class_name', 'gene', 'mean_abs_shap'])
 
         for cls in range(num_classes):
-            class_indices = [i for i, idx in enumerate(correct_indices)
-                         if y_pred[idx] == cls and y_test[idx] == cls]
+            class_indices = [
+                i for i, idx in enumerate(correct_indices)
+                if y_pred[idx] == cls and y_test[idx] == cls
+            ]
 
             if not class_indices:
                 print(f"Class {cls}: No correctly predicted samples.")
                 continue
 
-            shap_cls = shap_values_correct.values[class_indices, :, cls]
-            print("shap_cls:", shap_cls.shape)
-            sum_abs_shap_cls = np.sum(np.abs(shap_cls), axis=0)
-            count = count_class[cls]
-            mean_abs_shap_cls = sum_abs_shap_cls / count if count > 0 else np.zeros_like(sum_abs_shap_cls)
+            shap_cls = shap_matrix[class_indices, :]
+            mean_abs_shap_cls = np.mean(np.abs(shap_cls), axis=0)
 
-            sorted_idx = np.argsort(-mean_abs_shap_cls)[:10]
+            sorted_idx = np.argsort(-mean_abs_shap_cls)[:K]
             top_features = [feature_names[i] for i in sorted_idx]
             top_values = mean_abs_shap_cls[sorted_idx]
 
@@ -246,8 +247,8 @@ def shap_explain_positive(clf, X_test, y_test, feature_names, le):
             for gene, val in zip(top_features, top_values):
                 writer.writerow([class_name, gene, f"{val:.4f}"])
 
-    print(f"Saved top 10 genes for all classes to {csv_path}")
-    """
+    print(f"Saved top {K} genes for all classes to {csv_path}")
+    
 
 adata = ad.read_h5ad('/data1/data/corpus/Zheng68K.h5ad')  
 X = adata.X.toarray() if scipy.sparse.issparse(adata.X) else adata.X
@@ -263,7 +264,7 @@ if os.path.exists(model_path):
     print("Loading saved logistic regression model...")
     lr = joblib.load(model_path)
 else:
-    print("Model not found. Training logistic regression model...")
+    print("Model not found.")
     lr = h.train_logistic_regression(X_train, y_train)
     joblib.dump(lr, model_path)
     print(f"Model saved to {model_path}")
