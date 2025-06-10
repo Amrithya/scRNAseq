@@ -127,14 +127,13 @@ if __name__ == "__main__":
                     sample_slice = X_test[0:1]
                     if issparse(sample_slice):
                         sample_slice = sample_slice.toarray()
-                    sample_input = torch.tensor(sample_slice, dtype=torch.float32).to(device)
+                    sample_input = torch.tensor(sample_slice, dtype=torch.float32, requires_grad=True).to(device)
                     if len(sample_input.shape) == 1:
                         sample_input = sample_input.unsqueeze(0)
                     with torch.no_grad():
                         relevance_scores = lrp(sample_input)  
-                print(f"\nModel Config: hidden_size={hidden_size}, lr={lr}, dropout={dropout}")
-                print("Relevance scores shape:", relevance_scores.shape)
-                print("Top 10 most relevant features:", torch.topk(relevance_scores.abs(), 10).indices.tolist())
+        print("Relevance scores shape:", relevance_scores.shape)
+        print("Top 10 most relevant features:", torch.topk(relevance_scores.abs(), 10).indices.tolist())
         
         print("\nSummary of Results:")
         for hidden_size, lr, dropout, train_acc, acc in results:
