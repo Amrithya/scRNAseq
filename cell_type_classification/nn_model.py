@@ -95,9 +95,9 @@ def train_nn(device, train_data, test_data, lr_rate, weights, input_size, output
                         test_total += labels.size(0)
                 test_accuracy = test_correct / test_total * 100
                 
-                print(f"Loaded model: Train Accuracy: {train_accuracy:.2f}% | Test Accuracy: {test_accuracy:.2f}%")   
+        print(f"Loaded model: Train Accuracy: {train_accuracy:.2f}% | Test Accuracy: {test_accuracy:.2f}%")   
 
-        return model, test_accuracy, epoch_accuracy
+        return model, test_accuracy, train_accuracy
     
     else:
         model = NNet(input_size, hidden_size, output_size, dropout_rate).to(device)
