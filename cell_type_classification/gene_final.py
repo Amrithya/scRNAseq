@@ -107,10 +107,12 @@ if __name__ == "__main__":
     
     args, unknowns = cmdline_parser.parse_known_args()
 
+    print(f"Loading data => model: {args.model}, samp: {args.samp}, cluster: {args.cluster}" )
     X_train, y_train, X_test, y_test, le = h.load_data(args.samp, args.cluster, args.smote)
     print("Data loaded successfully.")
 
     if args.model == "nn":
+        print("Preprocessing data for nn")
         train_data, test_data, weights,le, input_size, output_size  = h.preprocess_data_nn(device, X_train, y_train, X_test, y_test,le)
         hidden_sizes = [128]
         lr_rates = [0.001]
