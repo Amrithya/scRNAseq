@@ -7,8 +7,11 @@ import scanpy as sc
 import pandas as pd
 import anndata as ad
 import torch.nn as nn
+import lrp_nn as lrpnn
 import nn_model as nnm 
+import cell_type_classification.lrp_nn as lrp_nn
 import helper as h
+
 import xai_model as xai
 from sklearn.preprocessing import LabelEncoder
 
@@ -117,7 +120,7 @@ if __name__ == "__main__":
         for hidden_size in hidden_sizes:
             for dropout in dropout_rates:
                 for lr in lr_rates:
-                    test_accuracy,train_accuracy = nnm.train_nn(device, train_data, test_data, lr, weights, input_size, output_size, dropout, hidden_size)
+                    test_accuracy,train_accuracy = lrpnn.train_nn(device, train_data, test_data, lr, weights, input_size, output_size, dropout, hidden_size)
                     results.append((hidden_size,lr, dropout, train_accuracy,test_accuracy))
         print("\nSummary of Results:")
         for hidden_size, lr, dropout, train_acc, acc in results:
