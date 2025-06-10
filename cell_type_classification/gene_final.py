@@ -10,8 +10,6 @@ import torch.nn as nn
 import lrp_nn as lrpnn
 import nn_model as nnm 
 import helper as h
-
-import xai_model as xai
 from sklearn.preprocessing import LabelEncoder
 
 
@@ -42,7 +40,7 @@ def run_model(model,X_train, y_train, X_test, y_test, samp, le):
         lr = h.train_logistic_regression(X_train, y_train)
         h.evaluate_model(lr, X_train, y_train,le,"train",model,samp)
         h.evaluate_model(lr, X_test, y_test,le,"test",model,samp)
-        shap_values, explainer = xai.shap_explain(lr, X_test, y_test, le)
+        #shap_values, explainer = xai.shap_explain(lr, X_test, y_test, le)
         #h.lime_explain(lr, X_train, X_test,le,"lr")
     elif model == "rf":
         rf = h.train_rf(X_train, y_train)
@@ -64,6 +62,8 @@ def run_model(model,X_train, y_train, X_test, y_test, samp, le):
 
 
 if __name__ == "__main__":
+
+    print("Running gene_final")
 
     """
     Main script for training and evaluating classification models on single-cell gene expression data.
