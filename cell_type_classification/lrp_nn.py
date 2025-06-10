@@ -9,20 +9,21 @@ import torch.optim as optim
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, TensorDataset
+import lrp_nn
 
 
 class NNet_LRP(nn.Module):
     def __init__(self, input_size, hidden_size, output_size, dropout_rate):
         super(NNet_LRP, self).__init__()
-        self.fc1 = nn.Linear(input_size, hidden_size)
+        self.fc1 = lrp_nn.Linear(input_size, hidden_size)
         self.relu1 = nn.ReLU()
         self.dropout1 = nn.Dropout(dropout_rate)
 
-        self.fc2 = nn.Linear(hidden_size, hidden_size // 2)
+        self.fc2 = lrp_nn.Linear(hidden_size, hidden_size // 2)
         self.relu2 = nn.ReLU()
         self.dropout2 = nn.Dropout(dropout_rate)
 
-        self.fc3 = nn.Linear(hidden_size // 2, output_size)
+        self.fc3 = lrp_nn.Linear(hidden_size // 2, output_size)
 
     def forward(self, x, explain=False, rule="alpha1beta0"):
         self.explain = explain
