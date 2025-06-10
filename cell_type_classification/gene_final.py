@@ -9,6 +9,7 @@ import anndata as ad
 import torch.nn as nn
 import nn_model as nnm 
 import helper as h
+from scipy.sparse import issparse
 from sklearn.preprocessing import LabelEncoder
 
 
@@ -123,14 +124,17 @@ if __name__ == "__main__":
                     model, test_accuracy, train_accuracy = nnm.train_nn(device, train_data, test_data, lr, weights, input_size, output_size, dropout, hidden_size)
                     results.append((hidden_size, lr, dropout, train_accuracy, test_accuracy))
                     lrp = nnm.LRP(model)
-                    sample_input = torch.tensor(X_test[0:1], dtype=torch.float32).to(device)
+                    sample_slice = X_test[0:1]
+                    if issparse(sample_slice):
+                        sample_slice = sample_slice.toarray()
+                    sample_input = torch.tensor(sample_slice, dtype=torch.float32).to(device)
                     if len(sample_input.shape) == 1:
                         sample_input = sample_input.unsqueeze(0)
                     with torch.no_grad():
-                        relevance_scores = lrp(sample_input)      
-            print(f"\nModel Config: hidden_size={hidden_size}, lr={lr}, dropout={dropout}")
-            print("Relevance scores shape:", relevance_scores.shape)
-            print("Top 10 most relevant features:", torch.topk(relevance_scores.abs(), 10).indices.tolist())
+                        relevance_scores = lrp(sample_input)  
+                print(f"\nModel Config: hidden_size={hidden_size}, lr={lr}, dropout={dropout}")
+                print("Relevance scores shape:", relevance_scores.shape)
+                print("Top 10 most relevant features:", torch.topk(relevance_scores.abs(), 10).indices.tolist())
         
         print("\nSummary of Results:")
         for hidden_size, lr, dropout, train_acc, acc in results:
