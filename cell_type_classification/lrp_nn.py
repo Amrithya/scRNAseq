@@ -56,71 +56,98 @@ def train_nn(device, train_data, test_data, lr_rate, weights, input_size, output
     batch_size = 64
     train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
+    save_path = "/data1/data/corpus/scMODEL/lrp_nn_Zheng68K.pth"
 
-    model = NNet_LRP(input_size, hidden_size, output_size, dropout_rate).to(device)
-    weights = weights.to(device)
-    criterion = nn.CrossEntropyLoss(weight=weights)
-    optimizer = optim.Adam(model.parameters(), lr=lr_rate)
+    if os.path.exists(save_path):
+        checkpoint = torch.load(save_path, map_location=device)
+        model = NNet_LRP(input_size, hidden_size, output_size, dropout_rate).to(device)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        print(f"Loaded existing model from {save_path}")
+        model.eval()
+        train_correct, train_total = 0, 0
+        with torch.no_grad():
+            for inputs, labels in train_loader:
+                inputs, labels = inputs.to(device), labels.to(device)
+                outputs = model(inputs)
+                _, predicted = torch.max(outputs, 1)
+                train_correct += (predicted == labels).sum().item()
+                train_total += labels.size(0)
+                train_accuracy = train_correct / train_total * 100
+                test_correct, test_total = 0, 0
+                with torch.no_grad():
+                    for inputs, labels in test_loader:
+                        inputs, labels = inputs.to(device), labels.to(device)
+                        outputs = model(inputs)
+                        _, predicted = torch.max(outputs, 1)
+                        test_correct += (predicted == labels).sum().item()
+                        test_total += labels.size(0)
+                test_accuracy = test_correct / test_total * 100
+                
+                print(f"Loaded model: Train Accuracy: {train_accuracy:.2f}% | Test Accuracy: {test_accuracy:.2f}%")
+                return test_accuracy, train_accuracy, model
+    else:
+        model = NNet_LRP(input_size, hidden_size, output_size, dropout_rate).to(device)
+        weights = weights.to(device)
+        criterion = nn.CrossEntropyLoss(weight=weights)
+        optimizer = optim.Adam(model.parameters(), lr=lr_rate)
 
-    print(f"\nTraining with Hidden size: {hidden_size}, learning rate: {lr_rate}, dropout rate: {dropout_rate}")
-    l1_lambda = 1e-5
-    num_epochs = 10
+        print(f"\nTraining with Hidden size: {hidden_size}, learning rate: {lr_rate}, dropout rate: {dropout_rate}")
+        l1_lambda = 1e-5
+        num_epochs = 10
 
-    for epoch in range(num_epochs):
-        model.train()
-        running_loss = 0.0
+        for epoch in range(num_epochs):
+            model.train()
+            running_loss = 0.0
+            correct = 0
+            total = 0
+
+            for inputs, labels in train_loader:
+                inputs, labels = inputs.to(device), labels.to(device)
+                optimizer.zero_grad()
+                outputs = model(inputs)
+                loss = criterion(outputs, labels)
+                l1_norm = sum(p.abs().sum() for p in model.parameters())
+                loss = loss + l1_lambda * l1_norm
+                loss.backward()
+                optimizer.step()
+
+                running_loss += loss.item()
+                _, predicted = torch.max(outputs, 1)
+                correct += (predicted == labels).sum().item()
+                total += labels.size(0)
+
+            epoch_loss = running_loss / len(train_loader)
+            epoch_accuracy = correct / total * 100
+            print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss:.4f}, Accuracy: {epoch_accuracy:.2f}%")
+
+        model.eval()
         correct = 0
         total = 0
 
-        for inputs, labels in train_loader:
-            inputs, labels = inputs.to(device), labels.to(device)
-            optimizer.zero_grad()
-            outputs = model(inputs)
-            loss = criterion(outputs, labels)
-            l1_norm = sum(p.abs().sum() for p in model.parameters())
-            loss = loss + l1_lambda * l1_norm
-            loss.backward()
-            optimizer.step()
+        with torch.no_grad():
+            for inputs, labels in test_loader:
+                inputs, labels = inputs.to(device), labels.to(device)
+                outputs = model(inputs)
+                _, predicted = torch.max(outputs, 1)
+                correct += (predicted == labels).sum().item()
+                total += labels.size(0)
 
-            running_loss += loss.item()
-            _, predicted = torch.max(outputs, 1)
-            correct += (predicted == labels).sum().item()
-            total += labels.size(0)
-
-        epoch_loss = running_loss / len(train_loader)
-        epoch_accuracy = correct / total * 100
-        print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss:.4f}, Accuracy: {epoch_accuracy:.2f}%")
-
-    model.eval()
-    correct = 0
-    total = 0
-
-    with torch.no_grad():
-        for inputs, labels in test_loader:
-            inputs, labels = inputs.to(device), labels.to(device)
-            outputs = model(inputs)
-            _, predicted = torch.max(outputs, 1)
-            correct += (predicted == labels).sum().item()
-            total += labels.size(0)
-
-    test_accuracy = correct / total * 100
-    print(f"Hidden size {hidden_size}, learning rate {lr_rate}, dropout {dropout_rate} => "
-          f"Train Accuracy: {epoch_accuracy:.2f}% :: Test Accuracy: {test_accuracy:.2f}%")
+        test_accuracy = correct / total * 100
+        print(f"Hidden size {hidden_size}, learning rate {lr_rate}, dropout {dropout_rate} => "
+            f"Train Accuracy: {epoch_accuracy:.2f}% :: Test Accuracy: {test_accuracy:.2f}%")
     
-    save_path = "/data1/data/corpus/scMODEL/lrp_nn_Zheng68K.pth"
+        torch.save({
+            'model_state_dict': model.state_dict(),
+            'input_size': input_size,
+            'hidden_size': hidden_size,
+            'output_size': output_size,
+            'dropout_rate': dropout_rate,
+            'lr_rate': lr_rate,
+            'weights': weights.cpu(),
+        }, save_path)
+        print(f"Model saved to {save_path}")
 
-    torch.save({
-        'model_state_dict': model.state_dict(),
-        'input_size': input_size,
-        'hidden_size': hidden_size,
-        'output_size': output_size,
-        'dropout_rate': dropout_rate,
-        'lr_rate': lr_rate,
-        'weights': weights.cpu(),
-    }, save_path)
-    print(f"Model saved to {save_path}")
-
-    return test_accuracy, epoch_accuracy, model
+        return test_accuracy, epoch_accuracy, model
 
 
 def explain_prediction(model, input_tensor, device, rule="alpha1beta0"):

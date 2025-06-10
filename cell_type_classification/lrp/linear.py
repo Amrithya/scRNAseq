@@ -16,3 +16,10 @@ class Linear(torch.nn.Linear):
         module.load_state_dict(lin.state_dict())
 
         return module
+    
+    def relprop(self, R, rule="epsilon", **kwargs):
+        p = kwargs.get('pattern')
+        if p is not None:
+            return linear.relprop[rule](R, self.weight, self.bias, p)
+        else:
+            return linear.relprop[rule](R, self.weight, self.bias)
