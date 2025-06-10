@@ -132,5 +132,5 @@ def explain_prediction(model, input_tensor, device, rule="alpha1beta0"):
     output_selected = output_selected.sum()
     output_selected.backward()
 
-    relevance = model.relprop(output)
+    relevance = NNet_LRP.relprop(output)
     return relevance
