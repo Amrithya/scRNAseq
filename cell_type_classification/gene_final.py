@@ -9,7 +9,7 @@ import anndata as ad
 import torch.nn as nn
 import lrp_nn as lrpnn
 import nn_model as nnm 
-import cell_type_classification.lrp_nn as lrp_nn
+import lrp_nn as lrp_nn
 import helper as h
 
 import xai_model as xai
