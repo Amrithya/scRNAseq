@@ -121,8 +121,12 @@ if __name__ == "__main__":
         for hidden_size in hidden_sizes:
             for dropout in dropout_rates:
                 for lr in lr_rates:
-                    test_accuracy,train_accuracy = lrpnn.train_nn(device, train_data, test_data, lr, weights, input_size, output_size, dropout, hidden_size)
+                    test_accuracy,train_accuracy, model = lrpnn.train_nn(device, train_data, test_data, lr, weights, input_size, output_size, dropout, hidden_size)
                     results.append((hidden_size,lr, dropout, train_accuracy,test_accuracy))
+        sample_input = X_test[0].unsqueeze(0)  # Shape: (1, input_size)
+        relevance = lrpnn.explain_prediction(model, sample_input, device)
+
+        print("Relevance for sample 0:", relevance)
         print("\nSummary of Results:")
         for hidden_size, lr, dropout, train_acc, acc in results:
             print(f"Hidden: {hidden_size}, LR: {lr}, Dropout: {dropout} => Train Accuracy: {train_acc:.2f}, Test Accuracy: {acc:.2f}%")

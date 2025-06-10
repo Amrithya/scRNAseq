@@ -82,7 +82,7 @@ def load_data(samp,cluster, smote):
                 adata_train.write('/data1/data/corpus/scDATA/Zheng68K_smote_data_train.h5ad')
                 adata_test.write('/data1/data/corpus/scDATA/Zheng68K_smote_data_test.h5ad')
         else:
-            print("Preprocessing raw data on cluster")
+            print("Preprocessing raw data without SMOTE on cluster")
             adata = sc.read_h5ad('/data1/data/corpus/scDATA/Zheng68K.h5ad')
             X_train, y_train, X_test, y_test, le = preprocess_data(adata, samp, cluster)
 
@@ -117,7 +117,7 @@ def log_norm(adata):
     y = le.fit_transform(cell_type_series)
     X = adata.X
     gene_names = adata.var_names
-    feature_importance(X,y,le,gene_names)
+    #feature_importance(X,y,le,gene_names)
     return X, y, le
 
 def feature_importance(X, y, le, gene_names):
