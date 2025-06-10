@@ -9,21 +9,21 @@ import torch.optim as optim
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, TensorDataset
-import lrp
+from lrp import linear
 
 
 class NNet_LRP(nn.Module):
     def __init__(self, input_size, hidden_size, output_size, dropout_rate):
         super(NNet_LRP, self).__init__()
-        self.fc1 = lrp.Linear(input_size, hidden_size)
+        self.fc1 = linear.Linear(input_size, hidden_size)
         self.relu1 = nn.ReLU()
         self.dropout1 = nn.Dropout(dropout_rate)
 
-        self.fc2 = lrp.Linear(hidden_size, hidden_size // 2)
+        self.fc2 = linear.Linear(hidden_size, hidden_size // 2)
         self.relu2 = nn.ReLU()
         self.dropout2 = nn.Dropout(dropout_rate)
 
-        self.fc3 = lrp.Linear(hidden_size // 2, output_size)
+        self.fc3 = linear.Linear(hidden_size // 2, output_size)
 
     def forward(self, x, explain=False, rule="alpha1beta0"):
         self.explain = explain
@@ -106,6 +106,19 @@ def train_nn(device, train_data, test_data, lr_rate, weights, input_size, output
     test_accuracy = correct / total * 100
     print(f"Hidden size {hidden_size}, learning rate {lr_rate}, dropout {dropout_rate} => "
           f"Train Accuracy: {epoch_accuracy:.2f}% :: Test Accuracy: {test_accuracy:.2f}%")
+    
+    save_path = "/data1/data/corpus/scMODEL/lrp_nn_Zheng68K.pth"
+
+    torch.save({
+        'model_state_dict': model.state_dict(),
+        'input_size': input_size,
+        'hidden_size': hidden_size,
+        'output_size': output_size,
+        'dropout_rate': dropout_rate,
+        'lr_rate': lr_rate,
+        'weights': weights.cpu(),
+    }, save_path)
+    print(f"Model saved to {save_path}")
 
     return test_accuracy, epoch_accuracy, model
 
