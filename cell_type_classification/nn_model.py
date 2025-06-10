@@ -16,26 +16,26 @@ class LRP:
     Implementation of Layer-wise Relevance Propagation for your neural network
     '''
     def __init__(self, model, rule='epsilon', epsilon=1e-7):
-        self.model = copy.deepcopy(model)
+        self.model = model
         self.model.eval()
         self.epsilon = epsilon
         self.rule = rule
         
     def forward(self, x):
-        self.local_input = x.clone().detach().requires_grad_(True)
+        self.local_input = x.clone().requires_grad_(True)
         return self.model(self.local_input)
     
     def relprop(self, x, R=None):
-        output = self.forward(x)
-        if R is None:
-            R = (output == output.max()).float()
-        
-        output.backward(R)
-        relevance = self.local_input.grad * self.local_input.data
-        self.local_input.grad = None 
-        
-        return relevance
-    
+        if hasattr(self, 'local_input') and self.local_input.grad is not None:
+            self.local_input.grad.zero_()
+        with torch.enable_grad():
+            output = self.forward(x)
+            if R is None:
+                R = (output == output.max()).float()
+            output.backward(R, retain_graph=True)
+            relevance = self.local_input.grad * self.local_input.data
+            self.local_input.grad = None
+        return relevance.detach()
     __call__ = relprop
 
 

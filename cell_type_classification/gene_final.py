@@ -130,7 +130,8 @@ if __name__ == "__main__":
                     sample_input = torch.tensor(sample_slice, dtype=torch.float32, requires_grad=True).to(device)
                     if len(sample_input.shape) == 1:
                         sample_input = sample_input.unsqueeze(0)
-                    with torch.no_grad():
+                    with torch.enable_grad():
+                        output = model(sample_input)
                         relevance_scores = lrp(sample_input)  
         print("Relevance scores shape:", relevance_scores.shape)
         print("Top 10 most relevant features:", torch.topk(relevance_scores.abs(), 10).indices.tolist())
