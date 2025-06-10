@@ -7,7 +7,6 @@ import scanpy as sc
 import pandas as pd
 import anndata as ad
 import torch.nn as nn
-import lrp_nn as lrpnn
 import nn_model as nnm 
 import helper as h
 from sklearn.preprocessing import LabelEncoder
@@ -121,13 +120,18 @@ if __name__ == "__main__":
         for hidden_size in hidden_sizes:
             for dropout in dropout_rates:
                 for lr in lr_rates:
-                    test_accuracy,train_accuracy, model = lrpnn.train_nn(device, train_data, test_data, lr, weights, input_size, output_size, dropout, hidden_size)
-                    results.append((hidden_size,lr, dropout, train_accuracy,test_accuracy))
-        sample_input = torch.tensor(X_test[0].toarray(), dtype=torch.float32)
-        sample_input = sample_input.to(device)
-        relevance = lrpnn.explain_prediction(model, sample_input, device)
-
-        print("Relevance for sample 0:", relevance)
+                    model, test_accuracy, train_accuracy = nnm.train_nn(device, train_data, test_data, lr, weights, input_size, output_size, dropout, hidden_size)
+                    results.append((hidden_size, lr, dropout, train_accuracy, test_accuracy))
+                    lrp = nnm.LRP(model)
+                    sample_input = torch.tensor(X_test[0:1], dtype=torch.float32).to(device)
+                    if len(sample_input.shape) == 1:
+                        sample_input = sample_input.unsqueeze(0)
+                    with torch.no_grad():
+                        relevance_scores = lrp(sample_input)      
+            print(f"\nModel Config: hidden_size={hidden_size}, lr={lr}, dropout={dropout}")
+            print("Relevance scores shape:", relevance_scores.shape)
+            print("Top 10 most relevant features:", torch.topk(relevance_scores.abs(), 10).indices.tolist())
+        
         print("\nSummary of Results:")
         for hidden_size, lr, dropout, train_acc, acc in results:
             print(f"Hidden: {hidden_size}, LR: {lr}, Dropout: {dropout} => Train Accuracy: {train_acc:.2f}, Test Accuracy: {acc:.2f}%")
