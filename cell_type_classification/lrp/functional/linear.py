@@ -26,6 +26,42 @@ def _backward_rho(ctx, relevance_output):
     trace.do_trace(relevance_input) 
     return relevance_input, None, None
 
+def relprop(self, R, rule="epsilon", **kwargs):
+        p = kwargs.get('pattern')
+        
+        class DummyContext:
+            def __init__(self, input, weight, bias=None, pattern=None):
+                self.saved_tensors = (input, weight, bias) if pattern is None else (input, weight, pattern)
+        
+        input_tensor = kwargs.get('input_tensor')
+        if input_tensor is None:
+            raise ValueError("Input tensor must be provided for relevance propagation")
+        
+        if rule in ["alpha1beta0", "alpha2beta1"]:
+            ctx = DummyContext(input_tensor, self.weight, self.bias)
+            if rule == "alpha1beta0":
+                return LinearAlpha1Beta0.backward(ctx, R)
+            else:
+                return LinearAlpha2Beta1.backward(ctx, R)
+        elif rule in ["epsilon", "gamma", "gamma+epsilon"]:
+            ctx = DummyContext(input_tensor, self.weight, self.bias)
+            if rule == "epsilon":
+                return LinearEpsilon.backward(ctx, R)
+            elif rule == "gamma":
+                return LinearGamma.backward(ctx, R)
+            else:
+                return LinearGammaEpsilon.backward(ctx, R)
+        elif rule in ["patternattribution", "patternnet"]:
+            if p is None:
+                raise ValueError("Pattern must be provided for pattern-based rules")
+            ctx = DummyContext(input_tensor, self.weight, self.bias, p)
+            if rule == "patternattribution":
+                return LinearPatternAttribution.backward(ctx, R)
+            else:
+                return LinearPatternNet.backward(ctx, R)
+        else:
+            raise ValueError(f"Unknown LRP rule: {rule}")
+        
 class LinearEpsilon(Function):
     @staticmethod
     def forward(ctx, input, weight, bias=None):
