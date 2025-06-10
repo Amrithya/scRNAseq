@@ -28,11 +28,19 @@ class LRP:
     def relprop(self, x, R=None):
         if hasattr(self, 'local_input') and self.local_input.grad is not None:
             self.local_input.grad.zero_()
+
+        self.local_input = x.clone().detach().requires_grad_(True)
+
         with torch.enable_grad():
-            output = self.forward(x)
+            output = self.model(self.local_input)
             if R is None:
-                R = (output == output.max()).float()
+                R = torch.zeros_like(output)
+                R.scatter_(1, output.argmax(dim=1, keepdim=True), 1.0)
             output.backward(R, retain_graph=True)
+            print("local_input.grad is", self.local_input.grad)
+            print("local_input requires_grad:", self.local_input.requires_grad)
+            print("output shape:", output.shape)
+            print("R shape:", R.shape)
             relevance = self.local_input.grad * self.local_input.data
             self.local_input.grad = None
         return relevance.detach()
