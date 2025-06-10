@@ -123,7 +123,8 @@ if __name__ == "__main__":
                 for lr in lr_rates:
                     test_accuracy,train_accuracy, model = lrpnn.train_nn(device, train_data, test_data, lr, weights, input_size, output_size, dropout, hidden_size)
                     results.append((hidden_size,lr, dropout, train_accuracy,test_accuracy))
-        sample_input = X_test[0].unsqueeze(0)  # Shape: (1, input_size)
+        sample_input = torch.tensor(X_test[0].toarray(), dtype=torch.float32)
+        sample_input = sample_input.to(device)
         relevance = lrpnn.explain_prediction(model, sample_input, device)
 
         print("Relevance for sample 0:", relevance)
