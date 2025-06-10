@@ -27,7 +27,7 @@ def load_data(samp,cluster, smote):
     if smote:
         k_values = [35,40,45,50,55]
         for k in k_values:
-            adata = sc.read_h5ad('/data1/data/corpus/Zheng68K.h5ad')
+            adata = sc.read_h5ad('/data1/data/corpus/scDATA/Zheng68K.h5ad')
             X, y,le = log_norm(adata)
             X_train, y_train, X_test, y_test = split_data(X,y)
             X_train, y_train = do_n_smote(X_train, y_train, k_neighbors=k) 
@@ -35,20 +35,20 @@ def load_data(samp,cluster, smote):
             adata_train.obs['celltype'] = y_train  
             adata_test = sc.AnnData(X_test)
             adata_test.obs['celltype'] = y_test
-            adata_train.write(f"/data1/data/corpus/Zheng68K_smote_data_train_{k}.h5ad")
-            adata_test.write(f"/data1/data/corpus/Zheng68K_smote_data_test_{k}.h5ad")
+            adata_train.write(f"/data1/data/corpus/scDATA/Zheng68K_smote_data_train_{k}.h5ad")
+            adata_test.write(f"/data1/data/corpus/scDATA/Zheng68K_smote_data_test_{k}.h5ad")
             lr = train_logistic_regression(X_train, y_train)
             evaluate_model_smote(lr, X_train, y_train,le,"train","lr",k)
             evaluate_model_smote(lr, X_test, y_test,le,"test","lr",k)
         exit()
     if cluster:
         if samp:
-            train_path = '/data1/data/corpus/Zheng68K_smote_data_train.h5ad'
-            test_path = '/data1/data/corpus/Zheng68K_smote_data_test.h5ad'
+            train_path = '/data1/data/corpus/scDATA/Zheng68K_smote_data_train.h5ad'
+            test_path = '/data1/data/corpus/scDATA/Zheng68K_smote_data_test.h5ad'
 
             if os.path.exists(train_path) and os.path.exists(test_path):
                 print("Loading balanced and preprocessed data on cluster")
-                adata = sc.read_h5ad('/data1/data/corpus/Zheng68K.h5ad')
+                adata = sc.read_h5ad('/data1/data/corpus/scDATA/Zheng68K.h5ad')
                 X = adata.X
                 cell_type_series = adata.obs['celltype']
                 le = LabelEncoder()
@@ -66,7 +66,7 @@ def load_data(samp,cluster, smote):
                 y_test = adata_test.obs['label'].values
             else:
                 print("Preprocessing raw data with SMOTE on cluster")
-                adata = sc.read_h5ad('/data1/data/corpus/Zheng68K.h5ad')
+                adata = sc.read_h5ad('/data1/data/corpus/scDATA/Zheng68K.h5ad')
                 X = adata.X
                 cell_type_series = adata.obs['celltype']
                 le = LabelEncoder()
@@ -79,11 +79,11 @@ def load_data(samp,cluster, smote):
                 adata_test = sc.AnnData(X_test)
                 adata_test.obs['label'] = y_test
 
-                adata_train.write('/data1/data/corpus/Zheng68K_smote_data_train.h5ad')
-                adata_test.write('/data1/data/corpus/Zheng68K_smote_data_test.h5ad')
+                adata_train.write('/data1/data/corpus/scDATA/Zheng68K_smote_data_train.h5ad')
+                adata_test.write('/data1/data/corpus/scDATA/Zheng68K_smote_data_test.h5ad')
         else:
             print("Preprocessing raw data on cluster")
-            adata = sc.read_h5ad('/data1/data/corpus/Zheng68K.h5ad')
+            adata = sc.read_h5ad('/data1/data/corpus/scDATA/Zheng68K.h5ad')
             X_train, y_train, X_test, y_test, le = preprocess_data(adata, samp, cluster)
 
     else:
@@ -502,7 +502,7 @@ def do_smote(X, y):
     print(f"y shape: {y_train.shape}")
     print("Class distribution after SMOTE:")
     print(pd.Series(y_train).value_counts())
-    #adata.write('/data1/data/corpus/pbmc68k_balanced_data2.h5ad')
+    #adata.write('/data1/data/corpus/scDATA/pbmc68k_balanced_data2.h5ad')
     return X_train, y_train
 
 def do_n_smote(X, y, k_neighbors):
@@ -535,6 +535,6 @@ def do_n_smote(X, y, k_neighbors):
     print(f"y shape: {y_train.shape}")
     print("Class distribution after SMOTE:")
     print(pd.Series(y_train).value_counts())
-    #adata.write(f'/data1/data/corpus/Zheng68K_smote_data{k_neighbors}.h5ad')
+    #adata.write(f'/data1/data/corpus/scDATA/Zheng68K_smote_data{k_neighbors}.h5ad')
     return X_train, y_train
         
