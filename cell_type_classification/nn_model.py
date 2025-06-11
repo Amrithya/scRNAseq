@@ -173,7 +173,7 @@ def analyze_lrp_classwise(model, lrp, X_test, y_test, test_correct_indices, gene
     results_dir = os.path.join(base_dir, 'results')
     os.makedirs(results_dir, exist_ok=True)
 
-    results_file = os.path.join(results_dir, f"nn_top_bottom10_genes_all_classes_from_lrp.csv")
+    results_file = os.path.join(results_dir, f"nn_top_bottom15_genes_all_classes_from_lrp.csv")
 
     num_classes = int(y_test.max() + 1)
     class_names = le.inverse_transform(np.arange(num_classes))
@@ -206,8 +206,8 @@ def analyze_lrp_classwise(model, lrp, X_test, y_test, test_correct_indices, gene
 
     for c in range(num_classes):
         relevance = class_relevance[c].cpu().numpy()
-        top_indices = np.argsort(relevance)[-10:][::-1]
-        bottom_indices = np.argsort(relevance)[:10]
+        top_indices = np.argsort(relevance)[-15:][::-1]
+        bottom_indices = np.argsort(relevance)[:15]
 
         top_genes = [gene_names[i] for i in top_indices]
         bottom_genes = [gene_names[i] for i in bottom_indices]
