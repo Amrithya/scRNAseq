@@ -73,7 +73,8 @@ def train_nn(device, train_data, test_data, lr_rate, weights, input_size, output
         model.load_state_dict(checkpoint['model_state_dict'])
         print(f"Loaded existing model from {save_path}")
         model.eval()
-
+        
+        train_correct, train_total = 0, 0
         with torch.no_grad():
             for inputs, labels in train_loader:
                 inputs, labels = inputs.to(device), labels.to(device)
