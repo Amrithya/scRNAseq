@@ -213,7 +213,7 @@ def analyze_lrp_classwise(model, lrp, X_test, y_test, test_correct_indices, gene
         bottom_genes = [gene_names[i] for i in bottom_indices]
         class_name = class_names[c]
 
-        for i in range(10):
+        for i in range(15):
             records.append({
                 "class": class_name,
                 "rank": i + 1,
