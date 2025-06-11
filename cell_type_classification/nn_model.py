@@ -167,7 +167,13 @@ def train_nn(device, train_data, test_data, lr_rate, weights, input_size, output
         return model, test_accuracy, epoch_accuracy, correct_indices
 
 
-def analyze_lrp_classwise(model, lrp, X_test, y_test, test_correct_indices, gene_names, le, device, csv_path="/results/classwise_top_bottom_genes.csv"):
+def analyze_lrp_classwise(model, lrp, X_test, y_test, test_correct_indices, gene_names, le, device):
+
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    results_dir = os.path.join(base_dir, 'results')
+    os.makedirs(results_dir, exist_ok=True)
+
+    results_file = os.path.join(results_dir, f"nn_top_bottom10_genes_all_classes_from_lrp.csv")
 
     num_classes = int(y_test.max() + 1)
     class_names = le.inverse_transform(np.arange(num_classes))
@@ -221,4 +227,6 @@ def analyze_lrp_classwise(model, lrp, X_test, y_test, test_correct_indices, gene
             })
 
     df = pd.DataFrame(records)
-    df.to_csv(csv_path, index=False)
+    if os.path.exists(results_file):
+        os.remove(results_file)
+    df.to_csv(results_file, mode='a', header=not os.path.exists(results_file), index=False)
