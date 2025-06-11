@@ -265,7 +265,7 @@ def shap_explain_positive(clf, model_clf, X_test, y_test, feature_names, le):
     print(f"Saved top and bottom {K} genes for all classes to {csv_path}")
     
 
-models = ['lr']
+models = ['rf', 'xgb']
 
 adata = ad.read_h5ad('/data1/data/corpus/scDATA/Zheng68K.h5ad')  
 X = adata.X.toarray() if scipy.sparse.issparse(adata.X) else adata.X
