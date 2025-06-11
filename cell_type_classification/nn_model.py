@@ -202,9 +202,6 @@ def analyze_lrp_classwise(model, lrp, X_test, y_test, test_correct_indices, gene
         if class_counts[c] > 0:
             class_relevance[c] /= class_counts[c]
 
-    if os.path.exists(csv_path):
-        os.remove(csv_path)
-
     records = []
 
     for c in range(num_classes):
