@@ -58,7 +58,7 @@ def run_model(model,X_train, y_train, X_test, y_test, samp, le):
         h.evaluate_model(xg, X_train, y_train, le,"train",model,samp)
         h.evaluate_model(xg, X_test, y_test, le,"test",model,samp)
         #h.shap_explainer(lr, X_train, X_test)
-     
+
 
 
 if __name__ == "__main__":
@@ -121,20 +121,10 @@ if __name__ == "__main__":
         for hidden_size in hidden_sizes:
             for dropout in dropout_rates:
                 for lr in lr_rates:
-                    model, test_accuracy, train_accuracy = nnm.train_nn(device, train_data, test_data, lr, weights, input_size, output_size, dropout, hidden_size)
+                    model, test_accuracy, train_accuracy, test_correct_indices = nnm.train_nn(device, train_data, test_data, lr, weights, input_size, output_size, dropout, hidden_size)
                     results.append((hidden_size, lr, dropout, train_accuracy, test_accuracy))
                     lrp = nnm.LRP(model)
-                    sample_slice = X_test[0:1]
-                    if issparse(sample_slice):
-                        sample_slice = sample_slice.toarray()
-                    sample_input = torch.tensor(sample_slice, dtype=torch.float32, requires_grad=True).to(device)
-                    if len(sample_input.shape) == 1:
-                        sample_input = sample_input.unsqueeze(0)
-                    with torch.enable_grad():
-                        output = model(sample_input)
-                        relevance_scores = lrp(sample_input)  
-        print("Relevance scores shape:", relevance_scores.shape)
-        print("Top 10 most relevant features:", torch.topk(relevance_scores.abs(), 10).indices.tolist())
+                    nnm.analyze_lrp_classwise(model, lrp, X_test, y_test, test_correct_indices, le, device)
         
         print("\nSummary of Results:")
         for hidden_size, lr, dropout, train_acc, acc in results:
