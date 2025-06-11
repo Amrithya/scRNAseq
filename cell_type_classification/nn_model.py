@@ -194,7 +194,7 @@ def analyze_lrp_classwise(model, X_test, y_test, test_correct_indices, lrp, gene
         if class_counts[c] > 0:
             class_relevance[c] /= class_counts[c]
 
-    csv_path = "classwise_top_bottom_genes.csv"
+    csv_path = "/results/classwise_top_bottom_genes.csv"
     if os.path.exists(csv_path):
         os.remove(csv_path)
 
