@@ -73,7 +73,7 @@ def train_nn(device, train_data, test_data, lr_rate, weights, input_size, output
         model.load_state_dict(checkpoint['model_state_dict'])
         print(f"Loaded existing model from {save_path}")
         model.eval()
-        
+
         train_correct, train_total = 0, 0
         with torch.no_grad():
             for inputs, labels in train_loader:
@@ -167,10 +167,11 @@ def train_nn(device, train_data, test_data, lr_rate, weights, input_size, output
         return model, test_accuracy, epoch_accuracy, correct_indices
 
 
-def analyze_lrp_classwise(model, X_test, y_test, test_correct_indices, lrp, gene_names, device):
+def analyze_lrp_classwise(model, lrp, X_test, y_test, test_correct_indices, gene_names, le, device, csv_path="/results/classwise_top_bottom_genes.csv"):
 
     num_classes = int(y_test.max() + 1)
-    feature_dim = X_test.shape[1]
+    class_names = le.inverse_transform(np.arange(num_classes))
+    feature_dim = gene_names.shape[0]
     class_relevance = torch.zeros((num_classes, feature_dim), device=device)
     class_counts = torch.zeros(num_classes, dtype=torch.int)
 
@@ -195,7 +196,6 @@ def analyze_lrp_classwise(model, X_test, y_test, test_correct_indices, lrp, gene
         if class_counts[c] > 0:
             class_relevance[c] /= class_counts[c]
 
-    csv_path = "/results/classwise_top_bottom_genes.csv"
     if os.path.exists(csv_path):
         os.remove(csv_path)
 
@@ -208,11 +208,11 @@ def analyze_lrp_classwise(model, X_test, y_test, test_correct_indices, lrp, gene
 
         top_genes = [gene_names[i] for i in top_indices]
         bottom_genes = [gene_names[i] for i in bottom_indices]
-
+        class_name = class_names[c]
 
         for i in range(10):
             records.append({
-                "class": c,
+                "class": class_name,
                 "rank": i + 1,
                 "top_gene": top_genes[i],
                 "top_score": relevance[top_indices[i]],
@@ -222,4 +222,3 @@ def analyze_lrp_classwise(model, X_test, y_test, test_correct_indices, lrp, gene
 
     df = pd.DataFrame(records)
     df.to_csv(csv_path, index=False)
-    print(f"\nSaved class-wise top/bottom gene scores to {csv_path}")

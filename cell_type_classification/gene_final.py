@@ -108,9 +108,8 @@ if __name__ == "__main__":
     args, unknowns = cmdline_parser.parse_known_args()
 
     print(f"Loading data => model: {args.model}, samp: {args.samp}, cluster: {args.cluster}" )
-    X_train, y_train, X_test, y_test, le = h.load_data(args.samp, args.cluster, args.smote)
+    X_train, y_train, X_test, y_test, le, gene_names = h.load_data(args.samp, args.cluster, args.smote)
     print("Data loaded successfully.")
-
     if args.model == "nn":
         print("Preprocessing data for nn")
         train_data, test_data, weights,le, input_size, output_size  = h.preprocess_data_nn(device, X_train, y_train, X_test, y_test,le)
@@ -124,7 +123,7 @@ if __name__ == "__main__":
                     model, test_accuracy, train_accuracy, test_correct_indices = nnm.train_nn(device, train_data, test_data, lr, weights, input_size, output_size, dropout, hidden_size)
                     results.append((hidden_size, lr, dropout, train_accuracy, test_accuracy))
                     lrp = nnm.LRP(model)
-                    nnm.analyze_lrp_classwise(model, lrp, X_test, y_test, test_correct_indices, le, device)
+                    nnm.analyze_lrp_classwise(model, lrp, X_test, y_test, test_correct_indices, gene_names, le, device)
         
         print("\nSummary of Results:")
         for hidden_size, lr, dropout, train_acc, acc in results:

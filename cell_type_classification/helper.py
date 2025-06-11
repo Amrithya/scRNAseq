@@ -84,6 +84,7 @@ def load_data(samp,cluster, smote):
         else:
             print("Preprocessing raw data without SMOTE on cluster")
             adata = sc.read_h5ad('/data1/data/corpus/scDATA/Zheng68K.h5ad')
+            gene_names = adata.var_names
             X_train, y_train, X_test, y_test, le = preprocess_data(adata, samp, cluster)
 
     else:
@@ -96,18 +97,21 @@ def load_data(samp,cluster, smote):
                 X = adata.X
                 cell_type_series = adata.obs['label']
                 le = LabelEncoder()
+                gene_names = adata.var_names
                 y = le.fit_transform(cell_type_series)
                 X_train, y_train, X_test, y_test = split_data(X,y)
             else:
                 print("Preprocessing raw data with SMOTE on local")
                 adata = sc.read_h5ad(os.path.join(current_dir, '..', 'data', 'Zheng68K.h5ad'))
+                gene_names = adata.var_names
                 X_train, y_train, X_test, y_test, le = preprocess_data(adata, samp, cluster)
         else:
             print("Preprocessing raw data without SMOTE on local")
             adata = sc.read_h5ad(os.path.join(current_dir, '..', 'data', 'Zheng68K.h5ad'))
+            gene_names = adata.var_names
             X_train, y_train, X_test, y_test, le = preprocess_data(adata, samp, cluster)
         
-    return X_train, y_train, X_test, y_test, le
+    return X_train, y_train, X_test, y_test, le, gene_names
 
 def log_norm(adata):
     #sc.pp.normalize_total(adata, target_sum=1e4)
