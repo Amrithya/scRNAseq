@@ -1,6 +1,7 @@
 import os
 import torch
 import shap
+from tqdm import tqdm
 import numpy as np
 import pandas as pd
 import scanpy as sc
@@ -296,11 +297,15 @@ def lime_explain_positive(clf, model_clf, X_test, y_test, feature_names, le):
 
     lime_matrix = np.zeros((len(correct_indices), len(feature_names)))
 
-    for i, idx in enumerate(correct_indices):
+    for i, idx in enumerate(tqdm(correct_indices, desc=f"LIME explaining {clf}")):
         sample = X_test[idx]
         pred_class = int(y_pred[idx])
-        explanation = explainer.explain_instance(sample, model_clf.predict_proba, num_features=len(feature_names), labels=[pred_class])
-        
+        explanation = explainer.explain_instance(
+            sample,
+            model_clf.predict_proba,
+            num_features=len(feature_names),
+            labels=[pred_class]
+        )
         weights = dict(explanation.as_list(label=pred_class))
         for j, feature in enumerate(feature_names):
             lime_matrix[i, j] = weights.get(feature, 0.0)
