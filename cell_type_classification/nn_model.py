@@ -1,4 +1,5 @@
 import os
+import csv
 import copy
 import torch
 import shap
@@ -66,7 +67,7 @@ def train_nn(device, train_data, test_data, lr_rate, weights, input_size, output
             return x
 
     num_epochs = 10
-    save_path = "/data1/data/corpus/scMODEL/lrp_nn_model_Zheng68K.pth"
+    save_path = "/data1/data/corpus/scMODEL/shap_nn_model_Zheng68K.pth"
 
     if os.path.exists(save_path):
         checkpoint = torch.load(save_path, map_location=device)
@@ -274,7 +275,7 @@ def shap_explain_nn(model, test_data, feature_names, le, device, save_name='nn')
     background_size = min(100, X_correct.shape[0])
     X_background = X_correct[:background_size]
 
-    explainer = shap.GradientExplainer(model_forward, X_background)
+    explainer = shap.DeepExplainer(model_forward, X_background)
     shap_values_correct = explainer.shap_values(X_correct)
 
     print(f"SHAP values computed for {len(correct_indices)} correctly predicted samples.")
