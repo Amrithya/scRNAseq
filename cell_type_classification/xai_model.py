@@ -10,6 +10,7 @@ import seaborn as sns
 import xgboost as xgb
 import torch.nn as nn
 import matplotlib.pyplot as plt
+from joblib import Parallel, delayed
 from xgboost import XGBClassifier
 from scipy.sparse import issparse
 import scipy.sparse
@@ -265,8 +266,20 @@ def shap_explain_positive(clf, model_clf, X_test, y_test, feature_names, le):
     print(f"Saved top and bottom {K} genes for all classes to {csv_path}")
  
 
-def lime_explain_positive(clf, model_clf, X_test, y_test, feature_names, le):
-    print(f"Explaining model predictions using LIME for model {clf}")
+def lime_explain_sample(sample, model, explainer, feature_names, pred_class):
+    explanation = explainer.explain_instance(
+        sample,
+        model.predict_proba,
+        num_features=len(feature_names),
+        labels=[pred_class]
+    )
+    weights = dict(explanation.as_list(label=pred_class))
+    lime_vector = np.array([weights.get(f, 0.0) for f in feature_names])
+    return lime_vector
+
+
+def lime_explain_positive_parallel(clf, model_clf, X_test, y_test, feature_names, le, n_jobs=4):
+    print(f"Explaining model predictions using LIME (parallel) for model {clf}")
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
     results_dir = os.path.join(base_dir, 'results')
@@ -280,13 +293,6 @@ def lime_explain_positive(clf, model_clf, X_test, y_test, feature_names, le):
     X_correct = X_test[correct_indices]
     correct_labels = y_test[correct_indices]
 
-    num_classes = len(le.classes_)
-    count_class = {i: (correct_labels == i).sum() for i in range(num_classes)}
-
-    print("Counts of correctly predicted labels per class:")
-    for label, count in count_class.items():
-        print(f"{label}: {count}")
-
     explainer = LimeTabularExplainer(
         X_test,
         feature_names=feature_names,
@@ -295,26 +301,23 @@ def lime_explain_positive(clf, model_clf, X_test, y_test, feature_names, le):
         mode='classification'
     )
 
-    lime_matrix = np.zeros((len(correct_indices), len(feature_names)))
+    print("Running LIME explanations in parallel...")
+    lime_matrix = Parallel(n_jobs=n_jobs)(
+        delayed(lime_explain_sample)(
+            X_test[idx],
+            model_clf,
+            explainer,
+            feature_names,
+            int(y_pred[idx])
+        ) for idx in tqdm(correct_indices, desc=f"LIME explaining {clf}")
+    )
 
-    for i, idx in enumerate(tqdm(correct_indices, desc=f"LIME explaining {clf}")):
-        sample = X_test[idx]
-        pred_class = int(y_pred[idx])
-        explanation = explainer.explain_instance(
-            sample,
-            model_clf.predict_proba,
-            num_features=len(feature_names),
-            labels=[pred_class]
-        )
-        weights = dict(explanation.as_list(label=pred_class))
-        for j, feature in enumerate(feature_names):
-            lime_matrix[i, j] = weights.get(feature, 0.0)
-
-    print("All LIME values collected.")
+    lime_matrix = np.array(lime_matrix)
     print(f"LIME matrix shape: {lime_matrix.shape}")
 
     K = 15
     csv_path = os.path.join(results_dir, f"{clf}_top_bottom15_genes_all_classes_from_lime_matrix.csv")
+    num_classes = len(le.classes_)
 
     with open(csv_path, mode='w', newline='') as csvfile:
         writer = csv.writer(csvfile)
@@ -325,7 +328,6 @@ def lime_explain_positive(clf, model_clf, X_test, y_test, feature_names, le):
                 i for i, idx in enumerate(correct_indices)
                 if y_pred[idx] == cls and y_test[idx] == cls
             ]
-
             if not class_indices:
                 print(f"Class {cls}: No correctly predicted samples.")
                 continue
@@ -336,19 +338,13 @@ def lime_explain_positive(clf, model_clf, X_test, y_test, feature_names, le):
             top_idx = np.argsort(-mean_lime_cls)[:K]
             bottom_idx = np.argsort(mean_lime_cls)[:K]
 
-            top_features = [feature_names[i] for i in top_idx]
-            top_values = mean_lime_cls[top_idx]
-
-            bottom_features = [feature_names[i] for i in bottom_idx]
-            bottom_values = mean_lime_cls[bottom_idx]
-
             class_name = le.inverse_transform([cls])[0]
 
-            for gene, val in zip(top_features, top_values):
-                writer.writerow([class_name, gene, f"{val:.4f}", 'top'])
+            for i in top_idx:
+                writer.writerow([class_name, feature_names[i], f"{mean_lime_cls[i]:.4f}", 'top'])
 
-            for gene, val in zip(bottom_features, bottom_values):
-                writer.writerow([class_name, gene, f"{val:.4f}", 'bottom'])
+            for i in bottom_idx:
+                writer.writerow([class_name, feature_names[i], f"{mean_lime_cls[i]:.4f}", 'bottom'])
 
     print(f"Saved top and bottom {K} genes for all classes to {csv_path}")
 
@@ -383,6 +379,6 @@ for i, clf in enumerate(models):
         print(f"Model saved to {model_path}")
 
     #shap_explain_positive(clf, model_clf, X_test, y_test, feature_names, le)
-    lime_explain_positive(clf, model_clf, X_test, y_test, feature_names, le)
+    lime_explain_positive_parallel(clf, model_clf, X_test, y_test, feature_names, le)
 
 
