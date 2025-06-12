@@ -11,7 +11,6 @@ import nn_model as nnm
 import helper as h
 from scipy.sparse import issparse
 from sklearn.preprocessing import LabelEncoder
-from xai_model import shap_explain_nn
 
 
 def run_model(model,X_train, y_train, X_test, y_test, samp, le):
@@ -123,7 +122,7 @@ if __name__ == "__main__":
                 for lr in lr_rates:
                     model, test_accuracy, train_accuracy, test_correct_indices = nnm.train_nn(device, train_data, test_data, lr, weights, input_size, output_size, dropout, hidden_size)
                     results.append((hidden_size, lr, dropout, train_accuracy, test_accuracy))
-                    shap_explain_nn(model, test_data, gene_names, le, device=device)
+                    nnm.shap_explain_nn(model, test_data, gene_names, le, device=device)
                     #lrp = nnm.LRP(model)
                     #nnm.analyze_lrp_classwise(model, lrp, X_test, y_test, test_correct_indices, gene_names, le, device)
         
