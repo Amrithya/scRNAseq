@@ -299,7 +299,7 @@ def lime_explain_positive(clf, model_clf, X_test, y_test, feature_names, le):
     for i, idx in enumerate(correct_indices):
         sample = X_test[idx]
         pred_class = int(y_pred[idx])
-        explanation = explainer.explain_instance(sample, model_clf.predict_proba, num_features=len(feature_names))
+        explanation = explainer.explain_instance(sample, model_clf.predict_proba, num_features=len(feature_names), labels=[pred_class])
         
         weights = dict(explanation.as_list(label=pred_class))
         for j, feature in enumerate(feature_names):
