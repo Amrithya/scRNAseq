@@ -305,10 +305,6 @@ def lime_explain_positive(clf, model_clf, X_test, y_test, feature_names, le):
         for j, feature in enumerate(feature_names):
             lime_matrix[i, j] = weights.get(feature, 0.0)
 
-        if i < 3:
-            print(f"Sample {i}: Predicted class = {pred_class}")
-            print(f"Explanation:\n{explanation.as_list(label=pred_class)}")
-
     print("All LIME values collected.")
     print(f"LIME matrix shape: {lime_matrix.shape}")
 
