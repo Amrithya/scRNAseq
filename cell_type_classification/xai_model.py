@@ -14,7 +14,6 @@ from scipy.sparse import issparse
 import scipy.sparse
 import csv
 import joblib
-
 from imblearn.over_sampling import SMOTE
 from sklearn.linear_model import SGDClassifier
 from sklearn.preprocessing import LabelEncoder
@@ -265,7 +264,95 @@ def shap_explain_positive(clf, model_clf, X_test, y_test, feature_names, le):
     print(f"Saved top and bottom {K} genes for all classes to {csv_path}")
  
 
-models = ['rf', 'xgb']
+def lime_explain_positive(clf, model_clf, X_test, y_test, feature_names, le):
+    print(f"Explaining model predictions using LIME for model {clf}")
+
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    results_dir = os.path.join(base_dir, 'results')
+    os.makedirs(results_dir, exist_ok=True)
+
+    y_pred = model_clf.predict(X_test)
+    correct_indices = np.where(y_pred == y_test)[0]
+    if len(correct_indices) == 0:
+        raise ValueError("No correctly predicted samples found in test set.")
+
+    X_correct = X_test[correct_indices]
+    correct_labels = y_test[correct_indices]
+
+    num_classes = len(le.classes_)
+    count_class = {i: (correct_labels == i).sum() for i in range(num_classes)}
+
+    print("Counts of correctly predicted labels per class:")
+    for label, count in count_class.items():
+        print(f"{label}: {count}")
+
+    explainer = LimeTabularExplainer(
+        X_test,
+        feature_names=feature_names,
+        class_names=le.classes_,
+        discretize_continuous=True,
+        mode='classification'
+    )
+
+    lime_matrix = np.zeros((len(correct_indices), len(feature_names)))
+
+    for i, idx in enumerate(correct_indices):
+        sample = X_test[idx]
+        pred_class = int(y_pred[idx])
+        explanation = explainer.explain_instance(sample, model_clf.predict_proba, num_features=len(feature_names))
+        
+        weights = dict(explanation.as_list(label=pred_class))
+        for j, feature in enumerate(feature_names):
+            lime_matrix[i, j] = weights.get(feature, 0.0)
+
+        if i < 3:
+            print(f"Sample {i}: Predicted class = {pred_class}")
+            print(f"Explanation:\n{explanation.as_list(label=pred_class)}")
+
+    print("All LIME values collected.")
+    print(f"LIME matrix shape: {lime_matrix.shape}")
+
+    K = 15
+    csv_path = os.path.join(results_dir, f"{clf}_top_bottom15_genes_all_classes_from_lime_matrix.csv")
+
+    with open(csv_path, mode='w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(['class_name', 'gene', 'lime_value', 'rank_type'])
+
+        for cls in range(num_classes):
+            class_indices = [
+                i for i, idx in enumerate(correct_indices)
+                if y_pred[idx] == cls and y_test[idx] == cls
+            ]
+
+            if not class_indices:
+                print(f"Class {cls}: No correctly predicted samples.")
+                continue
+
+            lime_cls = lime_matrix[class_indices, :]
+            mean_lime_cls = np.mean(lime_cls, axis=0)
+
+            top_idx = np.argsort(-mean_lime_cls)[:K]
+            bottom_idx = np.argsort(mean_lime_cls)[:K]
+
+            top_features = [feature_names[i] for i in top_idx]
+            top_values = mean_lime_cls[top_idx]
+
+            bottom_features = [feature_names[i] for i in bottom_idx]
+            bottom_values = mean_lime_cls[bottom_idx]
+
+            class_name = le.inverse_transform([cls])[0]
+
+            for gene, val in zip(top_features, top_values):
+                writer.writerow([class_name, gene, f"{val:.4f}", 'top'])
+
+            for gene, val in zip(bottom_features, bottom_values):
+                writer.writerow([class_name, gene, f"{val:.4f}", 'bottom'])
+
+    print(f"Saved top and bottom {K} genes for all classes to {csv_path}")
+
+
+models = ['lr', 'rf', 'xgb']
 
 adata = ad.read_h5ad('/data1/data/corpus/scDATA/Zheng68K.h5ad')  
 X = adata.X.toarray() if scipy.sparse.issparse(adata.X) else adata.X
@@ -294,5 +381,7 @@ for i, clf in enumerate(models):
         joblib.dump(model_clf, model_path)
         print(f"Model saved to {model_path}")
 
-    shap_explain_positive(clf, model_clf, X_test, y_test, feature_names, le)
+    #shap_explain_positive(clf, model_clf, X_test, y_test, feature_names, le)
+    lime_explain_positive(clf, model_clf, X_test, y_test, feature_names, le)
+
 
