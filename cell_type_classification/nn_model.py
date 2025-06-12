@@ -289,7 +289,7 @@ def shap_explain_nn(model, test_data, feature_names, le, device, save_name='nn')
         background_size = min(100, X_correct.shape[0])
         X_background = X_correct[:background_size]
 
-        explainer = shap.Explainer(model_forward, X_background)
+        explainer = shap.DeepExplainer(model_forward, X_background)
         shap_values_correct = explainer.shap_values(X_correct)
 
         print(f"SHAP values computed for {len(correct_indices)} correctly predicted samples.")
